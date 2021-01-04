@@ -13,6 +13,7 @@ int main(void)
 	// Unit testing the button state machine
 
 	DigitalButton buttonA("Button #1");
+	Sleep(10000);
 	X_PLAT_ASSERT(buttonA.getState() == E_ButtonState::NoPress, "Button initialized to the wrong state");
 
 	buttonA.sendEvent<PressEvent>(press);
@@ -42,6 +43,6 @@ int main(void)
 	X_PLAT_ASSERT(buttonA.getState() == E_ButtonState::NoPress, "Button did not transition state");
 	X_PLAT_ASSERT(gkc.keycode == UINT16_MAX, "Button did not clear the keycode");
 
-	
+	Sleep(10000);
 	return 0;
 }

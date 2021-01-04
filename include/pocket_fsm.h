@@ -31,13 +31,7 @@ public:
 		: _onTransition(nullptr)
 		, _nextState(nullptr)
 		, _pimpl(nullptr, nullptr)
-	{
-		printf("_onTransition is %d bytes big\n", sizeof(_onTransition));
-		printf("_nextState is %d bytes big\n", sizeof(_nextState));
-		printf("_pimpl is %d bytes big\n", sizeof(_pimpl));
-		printf("_name is %d bytes big\n", sizeof(_name));
-		printf("StateIF is %d bytes big\n", sizeof(*this));
-	}
+	{ }
 
 	// Constructor used by all other states: do not copy any StateIF data when chaining constructors
 	// Pimpl is not passed until after the transition function is called
@@ -162,6 +156,12 @@ protected: \
 		_nextState = new S(); \
 	} \
 public:
+
+// Use this macro to reliaby declare your react functions with the proper signature.
+// You are free to follow up with =0, final, {} or whatever suits your needs.
+// The event parameter is simply named e
+#define REACT(EVENT) \
+	virtual void react(EVENT &e)
 
 // Call this macro in a concrete state where NAME is the name of your State Class
 // derived from BASE, and BASE is derived from StateIF. This macro sets up the chain.

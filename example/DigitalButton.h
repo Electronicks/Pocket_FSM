@@ -25,20 +25,20 @@ struct ResetEvt {};
 struct GetKeyCode { uint16_t keycode; };
 
 // Step #3.1: Declare your base state for the state machine, deriving from the state interface parameterized with the pimpl
-class ButtonState : public pocket_fsm::StateIF<ButtonImpl>
+class ButtonStateIF : public pocket_fsm::StateIF<ButtonImpl>
 {
 	// Step #3.2: Use the provided macro, this sets up the changeState function.
-	BASE_STATE(ButtonState)
+	BASE_STATE(ButtonStateIF)
 
 	// Step #3.3: Declare a react function for each event in Step 1. Implement default behaviour or leave abstract.
-	virtual void react(PressEvent &evt) {};
-	virtual void react(ReleaseEvent &evt) 
+	REACT(PressEvent) {};
+	REACT(ReleaseEvent) 
 	{ 
-		evt.result = false; 
+		e.result = false; 
 	};
 	// You can make sure all event have the same reaction by making the react function final
-	virtual void react(ResetEvt &evt) final;
-	virtual void react(GetKeyCode &evt) final;
+	REACT(ResetEvt) final;
+	REACT(GetKeyCode) final;
 	
 	// Step #3.4: Define a default behaviour for onEntry/Exit, or leave it to concrete classes.
 	void onEntry() override {};
@@ -49,7 +49,7 @@ class ButtonState : public pocket_fsm::StateIF<ButtonImpl>
 };
 
 // Step #4.1: Define the State Machine object for your custom state
-class DigitalButton : public pocket_fsm::FiniteStateMachine<ButtonState>
+class DigitalButton : public pocket_fsm::FiniteStateMachine<ButtonStateIF>
 {
 public:
 	// Add parameters required to instantiate your pimpl

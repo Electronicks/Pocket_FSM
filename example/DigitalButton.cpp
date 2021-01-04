@@ -42,11 +42,12 @@ public:
 //  - Call changeState to transition after returning
 //  - Transition action is optional and occurs between exit and entry. Pimpl is still valid then.
 //  - The initial state needs a constructor that calls the provided macro.
+//  - Also implement final functions from the base state
 
 class NoPress;		// When the button is not pressed
 class BtnPress;		// When the button is indeed pressed
 
-class NoPress : public ButtonState
+class NoPress : public ButtonStateIF
 {
 	CONCRETE_STATE(NoPress)
 
@@ -56,9 +57,9 @@ class NoPress : public ButtonState
 		INITIAL_STATE_CTOR(NoPress, pimpl, ButtonImpl::Deleter);
 	}
 
-	void react(PressEvent &evt) override
+	REACT(PressEvent) override
 	{
-		_pimpl->_downKey = evt.keycode;
+		_pimpl->_downKey = e.keycode;
 		// You can use lambda for transition function
 		changeState<BtnPress>( [this] () {
 			printf("(%s) press true\n", _name); 
@@ -71,7 +72,7 @@ class NoPress : public ButtonState
 	}
 };
 
-class BtnPress : public ButtonState
+class BtnPress : public ButtonStateIF
 {
 	CONCRETE_STATE(BtnPress)
 
@@ -80,11 +81,11 @@ class BtnPress : public ButtonState
 		_pimpl->DisplayPress();
 	}
 
-	void react(ReleaseEvent &evt) override
+	REACT(ReleaseEvent) override
 	{
 		// Or you can use std::bind with a member function. The function is called on destruction.
 		changeState<NoPress>(std::bind(&BtnPress::ReleaseTransition, this));
-		evt.result = true;
+		e.result = true;
 	}
 
 	void ReleaseTransition()
@@ -105,12 +106,12 @@ class BtnPress : public ButtonState
 
 // The base state's final functions will need a definition here
 // These include pimpl getters via events
-void ButtonState::react(GetKeyCode &evt)
+void ButtonStateIF::react(GetKeyCode &e)
 {
-	evt.keycode = _pimpl->_downKey;
+	e.keycode = _pimpl->_downKey;
 }
 
-void ButtonState::react(ResetEvt &evt)
+void ButtonStateIF::react(ResetEvt &e)
 {
 	changeState<NoPress>([]()
 		{
