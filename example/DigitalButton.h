@@ -1,5 +1,8 @@
 #pragma once
 #include "pocket_fsm.h"
+#include <shared_mutex>
+
+// Step 0: Print the state machine diagram as referance so you have an idea of what you are doing! ;P
 
 // Step #1.1: Forward declare the Pointer to IMPLementation
 // Its content is unknown outside of the concrete states
@@ -63,5 +66,17 @@ public:
 
 protected:
 // Step #4.2: Optionally declare a lock object field and override lock/unlock() to secure cross thread operation.
+
+	std::shared_mutex _dumSpinlock;
+
+	void lock() override
+	{
+		while (!_dumSpinlock.try_lock());
+	}
+
+	void unlock() override
+	{
+		_dumSpinlock.unlock();
+	}
 };
 

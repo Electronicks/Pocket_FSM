@@ -11,6 +11,13 @@ public:
 	    : _name(name)
 	{}
 
+	~ButtonImpl()
+	{
+		using namespace std;
+		cout << "Button is being destroyed: " << _name << endl;
+		_downKey = UINT16_MAX;
+	}
+
 	void DisplayPress()
 	{
 		using namespace std;
@@ -28,13 +35,12 @@ public:
 
 	const char * _name;
 
-	static void Deleter(ButtonImpl *obj)
-	{
-		using namespace std;
-		obj->_downKey = UINT16_MAX;
-		cout << "Button is being destroyed: " << obj->_name << endl;
-	}
 };
+
+void Deleter(ButtonImpl *pimpl)
+{
+	delete pimpl;
+}
 
 // Step #6: Forward declare all your concrete states first, then for each concrete state:
 //  - Declare and use CONCRETE_STATE macro to set up constructor with stringified name
@@ -54,7 +60,8 @@ class NoPress : public ButtonStateIF
 	// Constructor of the initial state also sets up the pimpl with its deleter
 	NoPress(ButtonImpl *pimpl)
 	{
-		INITIAL_STATE_CTOR(NoPress, pimpl, ButtonImpl::Deleter);
+
+		INITIAL_STATE_CTOR(NoPress, pimpl, &Deleter);
 	}
 
 	REACT(PressEvent) override
@@ -125,5 +132,7 @@ void ButtonStateIF::react(ResetEvt &e)
 DigitalButton::DigitalButton(const char *name)
 	: FiniteStateMachine()
 {
+	// The top level state machine can also become a factory object by making the pimpl a base class for different implementations, 
+	// for which the selection of which implementation can be done here.
 	initialize(new NoPress(new ButtonImpl(name)));
 }

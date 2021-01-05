@@ -5,7 +5,7 @@
 
 // Cross platform assert to check for DEBUG runtime check
 #if defined(WIN32)
-#define X_PLAT_ASSERT(expr, msg) _ASSERT_EXPR(expr, L#msg)
+#define ASSERT_X_PLAT(expr, msg) _ASSERT_EXPR(expr, L#msg)
 #elif defined (UNIX)
 #include <cassert>
 #define X_PLAT_ASSERT(expr, msg) assert(expr && msg)
@@ -23,15 +23,10 @@ public:
 	// Signature for a function to be used during transition
 	using TransitionFunc = std::function<void()>;
 
-	// Signature for the Pimpl deleter
-	using PimplDeleter = std::function<void(Pimpl*)>;
+	using PimplDeleter = void(*)(Pimpl*);
 
 	// Constructor used by initial state
-	StateIF()
-		: _onTransition(nullptr)
-		, _nextState(nullptr)
-		, _pimpl(nullptr, nullptr)
-	{ }
+	StateIF() = default;
 
 	// Constructor used by all other states: do not copy any StateIF data when chaining constructors
 	// Pimpl is not passed until after the transition function is called
@@ -58,7 +53,7 @@ public:
 		return _nextState;
 	}
 
-	const char *_name; // Stringified name of the concrete class
+	const char *_name = nullptr; // Stringified name of the concrete class
 
 protected:
 	// Typedef beautifier
@@ -72,7 +67,7 @@ protected:
 
 	// Pointer to implementation. This object will contain all internal logic and is unknown outside of the states.
 	// unique_ptr doesn't work here because it causes compilation issues regarding deleting forward declared classes.
-	PimplSmartPtr _pimpl = nullptr;
+	PimplSmartPtr _pimpl = { nullptr, nullptr };
 };
 
 
@@ -94,7 +89,7 @@ public:
 	template<class E>
 	void sendEvent(E &evt)
 	{
-		X_PLAT_ASSERT(_currentState, L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
+		ASSERT_X_PLAT(_currentState, L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
 		lock();
 		_currentState->react(evt);
 		if (_currentState->getNextState())
@@ -108,7 +103,7 @@ public:
 
 	inline const char * getCurrentStateName() const
 	{
-		X_PLAT_ASSERT(_currentState, L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
+		ASSERT_X_PLAT(_currentState, L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
 		return _currentState->_name;
 	}
 
@@ -116,10 +111,9 @@ protected:
 	// Descendants call this in their constructor to set the initial state 
 	void initialize(S *initialState) 
 	{
-		X_PLAT_ASSERT(!_currentState, L"You already initialized me!");
+		ASSERT_X_PLAT(!_currentState, L"You already initialized me!");
 		_currentState.reset(initialState);
 		_currentState->onEntry();
-		size_t size = sizeof(*initialState);
 	}
 
 	inline const S* getCurrentState() const
@@ -151,7 +145,7 @@ protected: \
 	template<class S> \
 	void changeState(TransitionFunc onTransit = nullptr) { \
 		static_assert(std::is_base_of<BASENAME, S>::value, "Parameter of changeState needs to be a descendant of " #BASENAME); \
-		X_PLAT_ASSERT(!_nextState, "You have already called \"changeState<...>(...)\" !"); \
+		ASSERT_X_PLAT(!_nextState, "You have already called \"changeState<...>(...)\ in this react!"); \
 		_onTransition = onTransit; \
 		_nextState = new S(); \
 	} \
@@ -174,6 +168,8 @@ public: \
 // The state takes ownership of the PIMPL instance
 #define INITIAL_STATE_CTOR(NAME, PIMPL, PIMPLDEL) \
 	_name = #NAME; \
+	ASSERT_X_PLAT(((PIMPL == nullptr) ^ (PIMPLDEL == nullptr)) == false, \
+		"If you give a pimpl, you also need a deleter : just a static function that calls delete on your pimpl should do."); \
     _pimpl = PimplSmartPtr(PIMPL, PIMPLDEL);
 
 } // End of namespace
