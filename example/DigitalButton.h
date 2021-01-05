@@ -1,10 +1,10 @@
 #pragma once
 #include "pocket_fsm.h"
-#include <shared_mutex>
+#include <shared_mutex> // Lock mechanism for when I use cross sendEvent() from different threads
 
 // Step 0: Print the state machine diagram as referance so you have an idea of what you are doing! ;P
 
-// Step #1.1: Forward declare the Pointer to IMPLementation
+// Step #1.1: Forward declare the implementation class
 // Its content is unknown outside of the concrete states
 class ButtonImpl;
 
@@ -13,7 +13,6 @@ class ButtonImpl;
 // Alternatively, identify each state with an enum value, reported via virtual function.
 enum class E_ButtonState
 {
-	Invalid, // == false
 	NoPress,
 	BtnPress,
 };
@@ -30,10 +29,11 @@ struct GetKeyCode { uint16_t keycode; };
 // Step #3.1: Declare your base state for the state machine, deriving from the state interface parameterized with the pimpl
 class ButtonStateIF : public pocket_fsm::StateIF<ButtonImpl>
 {
-	// Step #3.2: Use the provided macro, this sets up the changeState function.
+	// Step #3.2: Use the provided macro, this sets up the changeState function. Visibility is public thereafter.
 	BASE_STATE(ButtonStateIF)
 
-	// Step #3.3: Declare a react function for each event in Step 1. Implement default behaviour or leave abstract.
+	// Step #3.3: Declare a react function for each event in Step 1. Use macro to ensure consistent signature.
+	// Implement default behaviour, leave or mark final.
 	REACT(PressEvent) {};
 	REACT(ReleaseEvent) 
 	{ 
@@ -47,7 +47,7 @@ class ButtonStateIF : public pocket_fsm::StateIF<ButtonImpl>
 	void onEntry() override {};
 	void onExit() override {};
 
-	// Pure virtual ensures concrete classes have to define this function and use the 
+	// Pure virtual ensures concrete classes have to define this function and use the enum
 	virtual E_ButtonState getState() const = 0;
 };
 
@@ -58,7 +58,7 @@ public:
 	// Add parameters required to instantiate your pimpl
 	DigitalButton(const char *name);
 
-	// Custom state identifier getter.
+	// Getter for custom state identifier
 	inline E_ButtonState getState()
 	{
 		return getCurrentState()->getState();
@@ -67,16 +67,10 @@ public:
 protected:
 // Step #4.2: Optionally declare a lock object field and override lock/unlock() to secure cross thread operation.
 
-	std::shared_mutex _dumSpinlock;
+	std::shared_mutex _dumbSpinlock;
 
-	void lock() override
-	{
-		while (!_dumSpinlock.try_lock());
-	}
+	void lock() override;
 
-	void unlock() override
-	{
-		_dumSpinlock.unlock();
-	}
+	void unlock() override;
 };
 

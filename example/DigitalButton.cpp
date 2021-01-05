@@ -2,9 +2,8 @@
 #include <iostream>
 #include <vector>
 
-// Step #5: Implement your pimpl! Hold all fields and declare all functions
-// Also define a static deleter function to replace the destructor. This is 
-// required by the unique ptr
+// Step #5.1: Implement your pimpl! Hold all fields and declare all functions 
+// to perform whatever output your state machine is handling.
 class ButtonImpl {
 public:
 	ButtonImpl(const char *name)
@@ -37,7 +36,8 @@ public:
 
 };
 
-PIMPL_DELETER_DEF(ButtonImpl);
+// Step #5.2: Use the macro to define the specialized deleter for your pimpl
+PIMPL_DELETER_DEF(ButtonImpl)
 
 // Step #6: Forward declare all your concrete states first, then for each concrete state:
 //  - Declare and use CONCRETE_STATE macro to set up constructor with stringified name
@@ -86,7 +86,7 @@ class BtnPress : public ButtonStateIF
 
 	REACT(ReleaseEvent) override
 	{
-		// Or you can use std::bind with a member function. The function is called on destruction.
+		// Or you can use std::bind with a member function. The function is called on destruction after exit
 		changeState<NoPress>(std::bind(&BtnPress::ReleaseTransition, this));
 		e.result = true;
 	}
@@ -131,4 +131,14 @@ DigitalButton::DigitalButton(const char *name)
 	// The top level state machine can also become a factory object by making the pimpl a base class for different implementations, 
 	// for which the selection of which implementation can be done here.
 	initialize(new NoPress(new ButtonImpl(name)));
+}
+
+void DigitalButton::lock()
+{
+	while (!_dumbSpinlock.try_lock());
+}
+
+void DigitalButton::unlock()
+{
+	_dumbSpinlock.unlock();
 }

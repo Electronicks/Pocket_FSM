@@ -1,17 +1,15 @@
 #include "DigitalButton.h"
 #include <string>
-#include <Windows.h>
 
-//constexpr uint16_t VK_SPACE = 32;
+constexpr uint16_t VK_SPACE = 32;
 
 PressEvent press{ VK_SPACE };
 ReleaseEvent release;
 GetKeyCode gkc;
 ResetEvt reset;
 
-void iteration()
+int main(void)
 {
-
 	DigitalButton buttonA("Button #1");
 	ASSERT_X_PLAT(buttonA.getState() == E_ButtonState::NoPress, "Button initialized to the wrong state");
 
@@ -41,18 +39,6 @@ void iteration()
 	buttonA.sendEvent(reset);
 	ASSERT_X_PLAT(buttonA.getState() == E_ButtonState::NoPress, "Button did not transition state");
 	ASSERT_X_PLAT(gkc.keycode == UINT16_MAX, "Button did not clear the keycode");
-
-}
-
-int main(void)
-{
-	// Unit testing the button state machine
-	iteration();
-	//Sleep(5000);
-	for (int i = 0; i < 0; ++i) {
-		iteration();
-	}
-	//Sleep(5000);
 
 	return 0;
 }

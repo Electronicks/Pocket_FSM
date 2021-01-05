@@ -5,7 +5,7 @@
 
 // Cross platform assert to check for DEBUG runtime check
 #if defined(WIN32)
-#define ASSERT_X_PLAT(expr, msg) _ASSERT_EXPR(expr, L#msg)
+#define ASSERT_X_PLAT(expr, msg) _ASSERT_EXPR(expr, msg)
 #elif defined (UNIX)
 #include <cassert>
 #define X_PLAT_ASSERT(expr, msg) assert(expr && msg)
@@ -14,9 +14,12 @@
 namespace pocket_fsm
 {
 
-// This function declaration is to be specialized for every instance using the PIMPL_DELETER macro
+// This declaration is to be specialized for every instance by using the PIMPL_DELETER_DEF macro
 template<class Pimpl>
-void PimplDeleter(Pimpl *pimpl);
+struct PimplDeleter
+{
+	void operator()(Pimpl *);
+};
 
 // The State interface holds transition call logic. It hold a Pointer to IMPLementation that is passed
 // to the next state on destruction.
@@ -26,11 +29,8 @@ class StateIF
 public:
 	using PimplType = Pimpl;
 
-	// Constructor used by initial state
+	// All states should be created clean : no copying allowed!
 	StateIF() = default;
-
-	// Constructor used by all other states: do not copy any StateIF data when chaining constructors
-	// Pimpl is not passed until after the transition function is called
 	StateIF(StateIF &s) = delete;
 
 	// Call transition and hand over the pimpl to the next state
@@ -54,11 +54,12 @@ public:
 		return _nextState;
 	}
 
-	const char *_name = nullptr; // Stringified name of the concrete class
+	// Stringified name of the concrete class
+	const char *_name = nullptr;
 
 protected:
-	// Typedef beautifier
-	using PimplSmartPtr = std::unique_ptr<Pimpl, void(*)(Pimpl*)>;
+	// Beautifiers
+	using PimplSmartPtr = std::unique_ptr<Pimpl, PimplDeleter<Pimpl>>;
 	using TransitionFunc = std::function<void()>; 	// Signature for a function to be used during transition
 
 	// The next state that the state machine must transition to
@@ -69,9 +70,8 @@ protected:
 
 	// Pointer to implementation. This object will contain all internal logic and is unknown outside of the states.
 	// unique_ptr doesn't work here because it causes compilation issues regarding deleting forward declared classes.
-	PimplSmartPtr _pimpl = { nullptr, nullptr };
+	PimplSmartPtr _pimpl = { nullptr };
 };
-
 
 // The State Machine handles sending events to the current state and manages state transitions. Derive from this class
 // with your state base class and Implementation class as parameters and set up a constructor with your initial state.
@@ -137,36 +137,36 @@ private:
 		_currentState->onEntry();
 	}
 
-	// The current state machine state.
+	// The current state of the machine.
 	std::unique_ptr<S> _currentState = nullptr;
 };
 
-// Call this macro in your base state deriving from StateIF that will serve as the base class for your concrete states
+// Call this macro in your base state class deriving from StateIF.
+// It defines the changeState<NextState>() function for your concrete classes.
 #define BASE_STATE(BASENAME) \
 	protected: \
 		template<class S> \
 		void changeState(TransitionFunc onTransit = nullptr) { \
 			static_assert(std::is_base_of<BASENAME, S>::value, "Parameter of changeState needs to be a descendant of " #BASENAME); \
-			ASSERT_X_PLAT(!_nextState, "You have already called \"changeState<...>(...)\ in this react!"); \
+			ASSERT_X_PLAT(!_nextState, LR"(You have already called " changeState<...>() " in this react!)"); \
 			_onTransition = onTransit; \
 			_nextState = new S(); \
 		} \
 	public:
 
 // Use this macro to reliaby declare your react functions with the proper signature.
-// You are free to follow up with =0, final, {} or whatever suits your needs.
+// Follow up with =0, final, {} or whatever suits your needs.
 // The event parameter is simply named e
 #define REACT(EVENT) \
 	virtual void react(EVENT &e)
 
-// Because the pimpl is only forward declared, the deleter needs to be defined where the pimpl is defined too.
+// Because the pimpl is only forward declared, the deleter needs to be defined where the pimpl is also defined.
 #define PIMPL_DELETER_DEF(PIMPL) \
 template<> \
-void pocket_fsm::PimplDeleter<PIMPL>(PIMPL *pimpl) \
-{ delete pimpl; }
+void pocket_fsm::PimplDeleter<PIMPL>::operator()(PIMPL *p) \
+{ delete p; }
 
-// Call this macro in a concrete state where NAME is the name of your State Class
-// derived from BASE, and BASE is derived from StateIF. This macro sets up the chain.
+// Call this macro in a concrete state where NAME is the name of the class
 #define CONCRETE_STATE(NAME) \
 	public: \
 		NAME() { _name=#NAME; }
@@ -175,6 +175,6 @@ void pocket_fsm::PimplDeleter<PIMPL>(PIMPL *pimpl) \
 // The state takes ownership of the PIMPL instance
 #define INITIAL_STATE_CTOR(NAME, NEW_PIMPL) \
 	_name = #NAME; \
-    _pimpl = PimplSmartPtr(NEW_PIMPL, &pocket_fsm::PimplDeleter<PimplType>)
+    _pimpl = PimplSmartPtr(NEW_PIMPL)
 
 } // End of namespace
