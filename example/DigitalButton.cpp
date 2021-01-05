@@ -37,10 +37,7 @@ public:
 
 };
 
-void Deleter(ButtonImpl *pimpl)
-{
-	delete pimpl;
-}
+PIMPL_DELETER_DEF(ButtonImpl);
 
 // Step #6: Forward declare all your concrete states first, then for each concrete state:
 //  - Declare and use CONCRETE_STATE macro to set up constructor with stringified name
@@ -60,8 +57,7 @@ class NoPress : public ButtonStateIF
 	// Constructor of the initial state also sets up the pimpl with its deleter
 	NoPress(ButtonImpl *pimpl)
 	{
-
-		INITIAL_STATE_CTOR(NoPress, pimpl, &Deleter);
+		INITIAL_STATE_CTOR(NoPress, pimpl);
 	}
 
 	REACT(PressEvent) override
