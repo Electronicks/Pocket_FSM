@@ -73,6 +73,35 @@ protected:
 	PimplSmartPtr _pimpl = { nullptr };
 };
 
+// Specialization with no pimpl : void as parameter
+template<>
+class StateIF<void>
+{
+public:
+	StateIF() = default;
+	StateIF(StateIF &s) = delete;
+	virtual ~StateIF()
+	{
+		if (_onTransition)
+			_onTransition();
+		// No pimpl to handoff
+	}
+	virtual void onEntry() = 0;
+	virtual void onExit() = 0;
+	inline StateIF *getNextState()
+	{
+		return _nextState;
+	}
+	
+	const char *_name = nullptr;
+
+protected:
+	using TransitionFunc = std::function<void()>; 	// Signature for a function to be used during transition
+
+	StateIF *_nextState = nullptr;
+	TransitionFunc _onTransition = nullptr;
+};
+
 // The State Machine handles sending events to the current state and manages state transitions. Derive from this class
 // with your state base class and Implementation class as parameters and set up a constructor with your initial state.
 // Parameter of FiniteStateMachine needs to be a descendant of StateIF
@@ -110,7 +139,7 @@ public:
 	}
 
 protected:
-	// Descendants call this in their constructor to set the initial state 
+	// Descendants call this in their constructor to set the initial state. The state machine takes ownership of the pointer.
 	void initialize(S *initialState) 
 	{
 		ASSERT_X_PLAT(!_currentState, L"You already initialized me!");
