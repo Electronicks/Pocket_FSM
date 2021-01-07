@@ -3,6 +3,9 @@
 #include <functional> // std::function
 #include <memory>     // std::unique_ptr
 
+namespace pocket_fsm
+{
+
 // Cross platform assert to check for DEBUG runtime check
 #if defined(WIN32)
 #define ASSERT_X_PLAT(expr, msg) _ASSERT_EXPR(expr, msg)
@@ -10,9 +13,6 @@
 #include <cassert>
 #define X_PLAT_ASSERT(expr, msg) assert(expr && msg)
 #endif
-
-namespace pocket_fsm
-{
 
 // This declaration is to be specialized for every instance by using the PIMPL_DELETER_DEF macro
 template<class Pimpl>
@@ -184,7 +184,7 @@ private:
 	public:
 
 // Use this macro to reliaby declare your react functions with the proper signature.
-// Follow up with =0, final, {} or whatever suits your needs.
+// Follow up with a semicolon, =0, final, {} or whatever suits your needs.
 // The event parameter is simply named e
 #define REACT(EVENT) \
 	virtual void react(EVENT &e)
@@ -197,13 +197,16 @@ void pocket_fsm::PimplDeleter<PIMPL>::operator()(PIMPL *p) \
 
 // Call this macro in a concrete state where NAME is the name of the class
 #define CONCRETE_STATE(NAME) \
-	public: \
-		NAME() { _name=#NAME; }
+public: \
+	NAME() { _name=#NAME; }
 
-// Use this macro in the custom constructor of your initial state to initialize it
-// The state takes ownership of the PIMPL instance
-#define INITIAL_STATE_CTOR(NAME, NEW_PIMPL) \
-	_name = #NAME; \
-    _pimpl = PimplSmartPtr(NEW_PIMPL)
+// Use this macro to define the constructor of your initial state.
+// It is given the new pimpl instance and it takes ownership of it
+#define INITIAL_STATE(NAME) \
+	NAME(PimplType *newPimpl) \
+		: NAME() \
+	{ \
+		_pimpl = PimplSmartPtr(newPimpl); \
+	}
 
 } // End of namespace

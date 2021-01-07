@@ -14,11 +14,19 @@ This is probably the simplest, easiest and fastest way to implement a state mach
 
 Using Pocket FSM, you can easily code a complex state machine from a state diagram document and produce good and reliable code that minmizes dependencies, has minimal memory overhead and good performance. It is easy to document and share with team members that may not care about how you implemented the machine, as long as it fullfills the state machine diagram.
 
-Pocket FSM uses typical Object-Oriented features and patterns to offer a powerful and effective framework. The State Machine only ever holds a single state object in it and none others will exist until a change of state is requested. Each state has it's own reaction to events but this is completely unknown to the user of the FSM thanks to polymorphism. On a state change, the next state object is created and the previous one is deleted : which is a transaction of 64 bytes only. Pocket FSM uses the pImpl pattern to easily handoff the underlying object containing the logic and data that the state machine is controlling to the next state object without making a deep copy. All memory management is taken care of by unique pointers. Pocket FSM also enables easy use of RAII pattern by providing and guaranteing a single onEntry and onExit function call for each state. Also, the pimpl is completely optional: should there be no data to preserve between states or are using some other method of accessing that data, set the pimpl type to void.
+* The State Machine only ever holds a single state object in it and none others will exist until a change of state is requested.
+* Each state has it's own reaction to events but this is completely unknown to the user of the FSM thanks to polymorphism.
+* On a state change, the next state object is created and the previous one is deleted : which is a transaction of 64 bytes at most.
+* Pocket FSM uses the pImpl pattern to easily handoff an underlying object containing the logic and data that the state machine is controlling to the next state object without making a deep copy, or exposition outside of the state machine source file.
+* All memory management is taken care of by smart pointers.
+* Pocket FSM also enables easy use of RAII pattern by providing and guaranteing a single onEntry and onExit function call for each state.
+* Macros are used to provide quick, consistent and descriptive coding of the custom states
+* Compile time and debug-only runtime asserts make sure that appropriate error messages are displayed when a misuse of the framework occurs.
+* Stringified concrete state names provide easy logging
 
 ## Why not use any of the other FSM frameworks
 
-I haven't been able to find one that gave the developper enough flexibility and simplicity at the same time. Some require either having an instance of all states present at all times, or have a strict transition table that is hard to implement and use properly outside of the simplest cases. I just decided to do my own, trying to resolve the issues I've experienced with the existing ones.
+I haven't been able to find one that gave the developper enough simplicity and flexibility at the same time. Some require either having an instance of all states present at all times, or have a strict transition table that is hard to implement and use properly outside of the simplest cases. I just decided to do my own, trying to resolve the issues I've experienced with the existing ones.
 
 ## Are there any requirements?
 
@@ -38,16 +46,16 @@ All the content of the header is in the pocket_fsm namespace exept the macros wh
 If you desire to make your object a finite state machine, you will need the following.
 0. It is highly recommended to start with a state machine diagram, listing the number and names of states, what stimuli the system responds to and what actions the system takes in each state, on transitions, on entry and on exit.
 1. Start by creating a header file, importing the Pocket FSM header. The header file must contain the following:
-    a. The forward declaration of the **Implementation Class** if you need one and optionally all the concrete states. The states have their name stringified, so the header is a good reference of what those strings can be.
-    b. A definition for all the input **Events** as structures. They may contain fields.
-    c. A declaration of a **Base State** class inheriting from StateIF parameterized with your implementation class and using the BASE_STATE macro. Use void parameter if no using an implementation class. It also declares a react function for each event you defined earlier using the REACT macro.
-	d. Declaration of **your state machine** class itself inheriting from FiniteStateMachine parameterized with your base state.
+    1. The forward declaration of the **Implementation Class** if you need one and optionally all the concrete states. The states have their name stringified, so the header is a good reference of what those strings can be.
+    2. A definition for all the input **Events** as structures. They may contain fields.
+    3. A declaration of a **Base State** class inheriting from StateIF parameterized with your implementation class and using the BASE_STATE macro. Use void parameter if no using an implementation class. It also declares a react function for each event you defined earlier using the REACT macro.
+	4. Declaration of **your state machine** class itself inheriting from FiniteStateMachine parameterized with your base state.
 2. Create the cpp file and define the following:
-    a. Give a full definition to your implementation class if you have one. It should have a function for each output action of the state machine.
-    b. Define the deleter of your implementation class using the macro if you have one.
-    c. If you haven't forward declared your concrete classes in the header you need to do it here. This is required to change to a state not declared yet.
-    d. Then define all your states using the CONCRETE_STATE() macro and overriding all necessary virtual functions.
-    e. Define your top level state machine constructor, calling the parent's initialize() with an **new** instance of the initial state and a **new** instance of the implementation class. Deletion is handled by the State Machine
+    1. Give a full definition to your implementation class if you have one. It should have a function for each output action of the state machine.
+    2. Define the deleter of your implementation class using the macro if you have one.
+    3. If you haven't forward declared your concrete classes in the header you need to do it here. This is required to change to a state not declared yet.
+    4. Then define all your states using the CONCRETE_STATE() macro and overriding all necessary virtual functions. If you have an implementation class, use the Initial state constructor macro in the state you desire your state machine to start in.
+    5. Define your top level state machine constructor, calling the parent's initialize() with an **new** instance of the initial state and a **new** instance of the implementation class. Deletion is handled by the State Machine
 
 To change the state of the machine, simply call changeState\<NewState\>() and after returning from the react function the changing sequence will occur, calling the relevent onExit and onEntry functions.
 

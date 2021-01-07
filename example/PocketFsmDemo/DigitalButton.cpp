@@ -55,10 +55,7 @@ class NoPress : public ButtonStateIF
 	CONCRETE_STATE(NoPress)
 
 	// Constructor of the initial state also sets up the pimpl with its deleter
-	NoPress(ButtonImpl *pimpl)
-	{
-		INITIAL_STATE_CTOR(NoPress, pimpl);
-	}
+	INITIAL_STATE(NoPress)
 
 	REACT(PressEvent) override
 	{
