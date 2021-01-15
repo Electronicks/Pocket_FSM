@@ -4,26 +4,30 @@
 #include <forward_list>
 #include <iostream>
 
-struct LockImpl; // Pimpl can be struct too
+// My pimpl
+struct SafeImpl;
 
+// State inputs
 struct Configure { std::forward_list<int> combination; };
-struct Digit { int digit;  };
+struct Number { int digit;  };
 struct Reset {};
 
+// Concrete states
 class Open;
 class Locked;
 class Lockdown;
 
-class LockState : public pocket_fsm::StateIF<LockImpl>
+class SafeState : public pocket_fsm::StateIF<SafeImpl>
 {
-	BASE_STATE(LockState)
+	BASE_STATE(SafeState)
 
+	// Default reactions => are unhandled
 	REACT(Configure)
 	{
 		std::cout << "[LOCK] Cannot configure the lock from state " << _name << std::endl;
 	}
 
-	REACT(Digit)
+	REACT(Number)
 	{
 		std::cout << "[LOCK] Cannot enter a digit from state " << _name << std::endl;
 	}
@@ -37,8 +41,8 @@ class LockState : public pocket_fsm::StateIF<LockImpl>
 	void onExit() {};
 };
 
-class CombinationLock : public pocket_fsm::FiniteStateMachine<LockState>
+class CombinationSafe : public pocket_fsm::FiniteStateMachine<SafeState>
 {
 public:
-	CombinationLock();
+	CombinationSafe();
 };

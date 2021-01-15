@@ -7,7 +7,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PocketFsmDemo", "PocketFsmD
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DatingSim", "DatingSim\SimplestStateMachine.vcxproj", "{2F9AB5F3-2255-452C-8FBC-CD928D557B7C}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CombinationLock", "CombinationLock\CombinationLock.vcxproj", "{D04953FF-C334-44E0-BAD1-4493849A7772}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CombinationSafe", "CombinationSafe\CombinationLock.vcxproj", "{D04953FF-C334-44E0-BAD1-4493849A7772}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

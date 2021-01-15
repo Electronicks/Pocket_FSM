@@ -1,6 +1,6 @@
-#include "Lock.h"
+#include "CombinationSafe.h"
 
-struct LockImpl
+struct SafeImpl
 {
 	std::forward_list<int> _combination;
 	std::forward_list<int>::const_iterator _p;
@@ -15,9 +15,9 @@ struct LockImpl
 	}
 };
 
-PIMPL_DELETER_DEF(LockImpl);
+PIMPL_DELETER_DEF(SafeImpl);
 
-class Open : public LockState
+class Open : public SafeState
 {
 	CONCRETE_STATE(Open)
 
@@ -34,11 +34,11 @@ class Open : public LockState
 	}
 };
 
-class Locked : public LockState
+class Locked : public SafeState
 {
 	CONCRETE_STATE(Locked)
 
-	REACT(Digit) override
+	REACT(Number) override
 	{
 		_pimpl->_error |= e.digit != *_pimpl->_p;
 
@@ -59,7 +59,7 @@ class Locked : public LockState
 	}
 };
 
-class Lockdown : public LockState
+class Lockdown : public SafeState
 {
 	CONCRETE_STATE(Lockdown)
 
@@ -70,7 +70,7 @@ class Lockdown : public LockState
 	}
 };
 
-CombinationLock::CombinationLock()
+CombinationSafe::CombinationSafe()
 {
-	initialize(new Open(new LockImpl()));
+	initialize(new Open(new SafeImpl()));
 }

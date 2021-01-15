@@ -43,6 +43,219 @@ All the content of the header is in the pocket_fsm namespace exept the macros wh
 
 ## How do I use Pocket FSM?
 
+Let's show the step by the use of a simple state machine example a combination safe. The safe requires you to configure a new combination every time you lock it, and entering a wrong combination puts the safe in lockdown. Once it lockdown, you need a competent authority to reset the safe before trying the lock again. We can start by laying down the basics of our state machine in the header CombinationSafe.h
+
+```c++
+#pragma once // Header sentinel
+
+// Include the framework to use it.
+#include "pocket_fsm.h"
+
+... // Include some more headers as you need them
+
+// I need a pimpl to hold the combination and possibly more
+struct SafeImpl;
+
+// State inputs
+struct Configure { std::forward_list<int> combination; }; // Our combination is a list of integer numbers
+struct Number { int digit;  }; // Entering a number is just passing a digit
+struct Reset {}; // Reset requires no parameter passing
+
+// Concrete states
+class Open; 		// The safe is open and waiting for a configuration
+class Locked;		// The safe is locked and processing digits from the user
+class Lockdown;		// The safe is in lockdown and requires a reset to use again.
+```
+
+At this point we have none of the links between the different pieces, but that's okay because we're in the header, we just do declarations here. Declaring the concrete states is optional in the header, it could be done in the source file instead, but it may be relevant to the user of the state machine since the state names are stringified, and it may be pertinent for that person to know what those values could be. At this point we haven't even used the framework! but this is about to change. Let's declare the base state for our safe, which will be cleverly called SafeState.
+
+```c++
+class SafeState : public pocket_fsm::StateIF<SafeImpl>
+{
+	BASE_STATE(SafeState)
+
+	// Default reactions => are unhandled
+	REACT(Configure)
+	{
+		std::cout << "[LOCK] Cannot configure the lock from state " << _name << std::endl;
+	}
+
+	REACT(Number)
+	{
+		std::cout << "[LOCK] Cannot enter a digit from state " << _name << std::endl;
+	}
+
+	REACT(Reset)
+	{
+		std::cout << "[LOCK] Cannot reset the lock from state " << _name << std::endl;
+	}
+	
+	void onEntry() override {};
+	void onExit() override {};
+};
+```
+
+Oh no, macros! Don't be spooked by those macros: they serve as both a consistent way to declare your states and a way to label your classes with their explicit purpose. The BASE_STATE macro is very important as it declares an important templated function for your state, which is the changeState<>() function which will allow all your states to... change state! Visibility is set to public after the macro so you don't have to think about it. The REACT macros are not as necessary, but simply provides a consistent signature to your react functions to be used by the FSM. These react functions could be left pure virtual, defined empty, defined on the spot like in our case, or even labelled final. It's all up to your needs. Finally, the state interface overrides are defined empty since we will not make use of them. It's important for the base state to not hold any data members: if you need data to be passed from one state to the next, the pimpl will hold those fields.
+
+This looks like a simple enough class. Now we need the machine itself that will be jugling the different states.
+
+```c++
+class CombinationLock : public pocket_fsm::FiniteStateMachine<SafeState>
+{
+public:
+	CombinationLock();
+};
+```
+
+Well, that is deceptively simple. Is that really it? Well, there are optional lock() and unlock() function that can be overriden to implement a mutex if you plan on sending events from different threads. Also, the machine constructor will be constructing the pimpl, so if it needs any parameters at construction it should be passed here, but we may not know what those are yet. Otherwise, yeah that's it! Of course you can add to it any method and field might seem pertinent, but remember that iteraction with the pimpl should only pass through event reactions.
+
+So that's our header file. At this point it can be shared with coworkers that may desire to start coding it's usage since they have the full interface to the state machine. But now we need to start coding the implementation itself. So let's start writing our CombinationSafe.cpp. First step here is to define our pimpl that was forward declared in the header. Obviously the implementation can be done in different ways, so the way I choose here is primarily for the purpose of demonstration more than anything else.
+
+```c++
+#include "CombinationSafe.h"
+
+struct SafeImpl
+{
+	std::forward_list<int> _combination;
+	std::forward_list<int>::const_iterator _p;
+	// This state flag could be a different state instead, 
+	// but it keeps the error status invisible to the user of the lock
+	bool _error = false;
+
+	... // Add Helper functions as you need them.
+};
+
+PIMPL_DELETER_DEF(SafeImpl);
+```
+
+In my implementation I desire to hold the combination and a pointer that will be travelling down as numbers are being entered. I will also need an error flag to indicate if a number was entered wrong at any time since I don't plan on being able to travel backwards, and I don't change state until I have received as many numbers as the combination holds. Typically this should be a different locked state, but I desire to hide this from the user of the CombinationSafe. I also need to define a deleter for the pimpl because of the way the memory management is handled with an opaque pointer. Now onto the fun part defining my actual states and reactions. If I didn't forward declare my concrete classes in the header I would do it here since I need it for changing state.
+
+```c++
+class Open : public SafeState
+{
+	CONCRETE_STATE(Open)
+
+	INITIAL_STATE(Open)
+
+	REACT(Configure) override
+	{
+		if (!e.combination.empty())
+		{
+			_pimpl->_combination = e.combination;
+			_p = _combination.cbegin();	// Reset function?!
+			_error = false;
+			changeState<Locked>();
+		}
+	}
+};
+```
+
+This reads rather easily doesn't it? Open is a concrete state, what more? the initial state, and it reacts to a configuration by adopting the configuration and changing to a locked state! Let's talk a little more about the macros: both CONCRETE_STATE and INITIAL_STATE define constructors, the first with no arguments and the second with a pimpl pointer as parameter. Once again visibility is handled by the macros so you don't think about it. The REACT macro shows up again, it is again optional but handy for a consistent signature. Just remember the event parameter it called e and is non-const reference. Changing state is as easy as invoking the templated function. This state is not concerned with other kind of events, so the default reaction will suffice. On to the other states.
+
+```c++
+class Locked : public SafeState
+{
+	CONCRETE_STATE(Locked)
+
+	REACT(Number) override
+	{
+		_pimpl->_error |= e.digit != *_pimpl->_p;
+
+		_pimpl->_p++;
+
+		if (_pimpl->_p == _pimpl->_combination.cend())
+		{
+			if (_pimpl->_error)
+				changeState<Lockdown>();
+			else
+				changeState<Open>();
+		}
+	}
+
+	REACT(Reset) override
+	{
+		_pimpl->Reset();
+	}
+};
+
+class Lockdown : public SafeState
+{
+	CONCRETE_STATE(Lockdown)
+
+	REACT(Reset) override
+	{
+		_pimpl->Reset();
+		changeState<Locked>();
+	}
+};
+```
+
+And here's our main processing. The Reset function was added as I was performing the same operation multiple times. Processing the number could arguably be a function as well, to move the responsibility in the pimpl. We can see that the safe stays in the locked state until enough numbers are entered. Reset enables the user to start over or clear the lockdown. It feels like we should be done, but let's not forget we need the constructor of our CombinationSafe to kick things off!
+
+``` c++
+CombinationSafe::CombinationSafe()
+{
+	initialize(new Open(new SafeImpl()));
+}
+```
+
+The constructor creates the pimpl instance and the initial state. The function initialize is part of the base class and is required to use the state machine. This function will also call the initial state's onEntry function to honor the RAII pattern. As mentioned previously, any parameters the pimpl needs to function can be passed along right here. So now that the state machine is coded? How do you use it? Let's see what our coworker was working on since we gave him our header.
+
+```c++
+#include "CombinationSafe.h"
+
+int main()
+{
+	CombinationSafe safe;
+	while (true) // type q to quit
+	{
+		std::cout << std::endl << "The safe is currently currently " << safe.getCurrentStateName() << std::endl <<
+			"What would you like to do?" << std::endl <<
+			"1. Configure" << std::endl <<
+			"2. Enter a number" << std::endl <<
+			"3. Reset" << std::endl <<
+			"q. Quit" << std::endl;
+
+		char choice = 0;
+		choice = std::cin.get();
+		while (std::cin.get() != '\n');
+
+		switch (choice)
+		{
+		case '1':
+		{
+			Configure configure;
+			std::cout << "Enter your combination of integers, separated by a whitespaces:" << std::endl;
+			... // Read, parse, push_back, rinse, repeat
+			configure.combination.assign(newCombination.begin(), newCombination.end());
+			safe.sendEvent(configure);
+		} break;
+		case '2':
+		{
+			Number digit;
+			std::cout << "Enter an integer: " << std::endl;
+			... // Read and parse
+			safe.sendEvent(digit);
+		}	break;
+		case '3':
+		{
+			Reset reset;
+			safe.sendEvent(reset);
+		}	break;
+		case 'q':
+			std::cout << "Thanks for playing" << std::endl;
+			return 0;
+		}
+	}
+}
+```
+
+Using the safe seems simple enough. After creation you can just start sending events to it, filling up those event structures with the proper data. Those structures can also contain return values such as error codes, or maybe inout parameters such as other objects. If you want to log what state you are in, you have a handy function to provide you the stringified name of the state. Beyond that you're just feeding events to the machine who will process them in whatever state it happens to be in.
+
+You can find a runnable version of this example, as well as other examples showcasing other features of the framework in the example VS solution provided.
+
+Finally here's a bullet point resume of what you need to do.
+
 If you desire to make your object a finite state machine, you will need the following.
 0. It is highly recommended to start with a state machine diagram, listing the number and names of states, what stimuli the system responds to and what actions the system takes in each state, on transitions, on entry and on exit.
 1. Start by creating a header file, importing the Pocket FSM header. The header file must contain the following:

@@ -154,12 +154,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="LoveInterest.cpp" />
+    <ClCompile Include="EmotionalState.cpp" />
     <ClCompile Include="DatingSim.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\pocket_fsm.h" />
-    <ClInclude Include="LoveInterest.h" />
+    <ClInclude Include="EmotionalState.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

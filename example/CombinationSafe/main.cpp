@@ -1,13 +1,13 @@
-// CombinationLock.cpp : This file contains the 'main' function. Program execution begins and ends there.
+// CombinationSafe.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
-#include "Lock.h"
+#include "CombinationSafe.h"
 #include <sstream>
 #include <list>
 
 int main()
 {
-	CombinationLock lock;
+	CombinationSafe lock;
 	while (true)
 	{
 		std::cout << std::endl << "The lock is currently currently " << lock.getCurrentStateName() << std::endl <<
@@ -43,7 +43,7 @@ int main()
 		case '2':
 		{
 			std::cout << "Enter an integer: " << std::endl;
-			Digit digit;
+			Number digit;
 			std::cin >> digit.digit;
 			while (std::cin.get() != '\n');
 			lock.sendEvent(digit);

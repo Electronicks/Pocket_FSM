@@ -15,10 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CombinationLock.cpp">
+    <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Lock.cpp">
+    <ClCompile Include="CombinationSafe.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -26,7 +26,7 @@
     <ClInclude Include="..\..\include\pocket_fsm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Lock.h">
+    <ClInclude Include="CombinationSafe.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -15,10 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="LoveInterest.cpp">
+    <ClCompile Include="DatingSim.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DatingSim.cpp">
+    <ClCompile Include="EmotionalState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -26,7 +26,7 @@
     <ClInclude Include="..\..\include\pocket_fsm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="LoveInterest.h">
+    <ClInclude Include="EmotionalState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
