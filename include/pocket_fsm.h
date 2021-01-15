@@ -21,99 +21,102 @@ struct PimplDeleter
 	void operator()(Pimpl *);
 };
 
-// The State interface holds transition call logic. It hold a Pointer to IMPLementation that is passed
-// to the next state on destruction.
-template<class Pimpl>
+struct OnEntry { private: OnEntry() = default; friend class InternalPrivilege; };
+struct OnExit { private: OnExit() = default; friend class InternalPrivilege; };
+
+// State that has no pimpl
 class StateIF
 {
 public:
-	using PimplType = Pimpl;
+	// Useful typedefs
+	using OnEntry = pocket_fsm::OnEntry;
+	using OnExit = pocket_fsm::OnExit;
 
 	// All states should be created clean : no copying allowed!
 	StateIF() = default;
 	StateIF(StateIF &s) = delete;
-
-	// Call transition and hand over the pimpl to the next state
-	virtual ~StateIF() 
+	virtual ~StateIF()
 	{
-		if (_onTransition) 
+		if (_onTransition)
+		{
 			_onTransition();
-
-		if (_nextState)
-			_pimpl.swap(_nextState->_pimpl);
+		}
 	}
-
+	
 	// These functions are run when the state becomes active or inactive
 	// The function run on transition occur between these events
-	virtual void onEntry() = 0;
-	virtual void onExit() = 0;
-
-	// If a state transition was called, this object will be the next state, otherwise it's just nullptr.
+	virtual void react(OnEntry &e) = 0;
+	virtual void react(OnExit &e) = 0;
 	inline StateIF *getNextState()
 	{
 		return _nextState;
 	}
 
-	// Stringified name of the concrete class
 	const char *_name = nullptr;
 
 protected:
-	// Beautifiers
-	using PimplSmartPtr = std::unique_ptr<Pimpl, PimplDeleter<Pimpl>>;
+	using PimplType = void;
 	using TransitionFunc = std::function<void()>; 	// Signature for a function to be used during transition
 
-	// The next state that the state machine must transition to
 	StateIF *_nextState = nullptr;
-
-	// Action to perform on changing of state after exit before entry
 	TransitionFunc _onTransition = nullptr;
+};
+
+
+// The State interface holds transition call logic. It hold a Pointer to IMPLementation that is passed
+// to the next state on destruction.
+template<class Pimpl>
+class StatePimplIF : public StateIF
+{
+public:
+	StatePimplIF() = default;
+	StatePimplIF(StateIF &s) = delete;
+
+	// Call transition and hand over the pimpl to the next state
+	virtual ~StatePimplIF()
+	{
+		// Transit needs to occur before handing off the pimpl
+		if (_onTransition)
+		{
+			_onTransition();
+			_onTransition = nullptr; // So it is cleared after use
+		}
+
+		if (_nextState)
+		{
+			// assert in change state guarantees to only change between to children of the same base class.
+			_pimpl.swap(static_cast<StatePimplIF<PimplType>*>(_nextState)->_pimpl);
+		}
+	}
+protected:
+	// Beautifiers
+	using PimplSmartPtr = std::unique_ptr<Pimpl, PimplDeleter<Pimpl>>;
+	using PimplType = Pimpl;
 
 	// Pointer to implementation. This object will contain all internal logic and is unknown outside of the states.
 	// unique_ptr doesn't work here because it causes compilation issues regarding deleting forward declared classes.
 	PimplSmartPtr _pimpl = { nullptr };
 };
 
-// Specialization with no pimpl : void as parameter
-template<>
-class StateIF<void>
+class InternalPrivilege
 {
-public:
-	StateIF() = default;
-	StateIF(StateIF &s) = delete;
-	virtual ~StateIF()
-	{
-		if (_onTransition)
-			_onTransition();
-		// No pimpl to handoff
-	}
-	virtual void onEntry() = 0;
-	virtual void onExit() = 0;
-	inline StateIF *getNextState()
-	{
-		return _nextState;
-	}
-	
-	const char *_name = nullptr;
-
 protected:
-	using TransitionFunc = std::function<void()>; 	// Signature for a function to be used during transition
-
-	StateIF *_nextState = nullptr;
-	TransitionFunc _onTransition = nullptr;
+	OnEntry entry;
+	OnExit exit;
 };
 
 // The State Machine handles sending events to the current state and manages state transitions. Derive from this class
 // with your state base class and Implementation class as parameters and set up a constructor with your initial state.
 // Parameter of FiniteStateMachine needs to be a descendant of StateIF
 template<class S>
-class FiniteStateMachine
+class FiniteStateMachine : protected InternalPrivilege
 {
 public:
 	// Basic constructor / destructor
 	FiniteStateMachine() = default;
 	virtual ~FiniteStateMachine() 
 	{
-		_currentState->onExit(); // Cleanup
+		_currentState->react(exit); // Cleanup
 	}
 
 	// Call this method with an object that S can react to!
@@ -123,7 +126,7 @@ public:
 		ASSERT_X_PLAT(_currentState, L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
 		lock();
 		_currentState->react(evt);
-		if (_currentState->getNextState())
+		while (_currentState->getNextState())
 		{
 			// This cast is safe because of the static assert in this class
 			changeState(static_cast<S*>(_currentState->getNextState()));
@@ -144,7 +147,7 @@ protected:
 	{
 		ASSERT_X_PLAT(!_currentState, L"You already initialized me!");
 		_currentState.reset(initialState);
-		_currentState->onEntry();
+		_currentState->react(entry);
 	}
 
 	inline const S* getCurrentState() const
@@ -161,9 +164,9 @@ private:
 	// This function performs the state transition and calls state events
 	void changeState(S *nextState)
 	{
-		_currentState->onExit();
+		_currentState->react(exit);
 		_currentState.reset(nextState); // old state destructor calls onTransition, hands off pimpl and gets deleted
-		_currentState->onEntry();
+		_currentState->react(entry);
 	}
 
 	// The current state of the machine.

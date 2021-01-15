@@ -19,9 +19,13 @@ class Vexed;
 class NumberAcquired;
 
 // Generic emotional state
-class EmotionalState : public pocket_fsm::StateIF<void>
+class EmotionalState : public pocket_fsm::StateIF
 {
 	BASE_STATE(EmotionalState)
+
+	// Interface overrides / unused
+	REACT(OnEntry) override {};
+	REACT(OnExit) override {};
 
 	// Different for all states
 	REACT(Compliment) = 0;
@@ -33,10 +37,6 @@ class EmotionalState : public pocket_fsm::StateIF<void>
 
 	// Same for all states
 	REACT(Insult) final;
-
-	// unused events
-	void onEntry() override {};
-	void onExit() override {};
 };
 
 // Basic state machine 

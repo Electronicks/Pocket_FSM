@@ -17,7 +17,7 @@ class Open;
 class Locked;
 class Lockdown;
 
-class SafeState : public pocket_fsm::StateIF<SafeImpl>
+class SafeState : public pocket_fsm::StatePimplIF<SafeImpl>
 {
 	BASE_STATE(SafeState)
 
@@ -37,8 +37,8 @@ class SafeState : public pocket_fsm::StateIF<SafeImpl>
 		std::cout << "[LOCK] Cannot reset the lock from state " << _name << std::endl;
 	}
 	
-	void onEntry() {};
-	void onExit() {};
+	REACT(OnEntry) override {};
+	REACT(OnExit) override {};
 };
 
 class CombinationSafe : public pocket_fsm::FiniteStateMachine<SafeState>

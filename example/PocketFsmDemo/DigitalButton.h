@@ -27,7 +27,7 @@ struct ResetEvt {};
 struct GetKeyCode { uint16_t keycode; };
 
 // Step #3.1: Declare your base state for the state machine, deriving from the state interface parameterized with the pimpl
-class ButtonStateIF : public pocket_fsm::StateIF<ButtonImpl>
+class ButtonStateIF : public pocket_fsm::StatePimplIF<ButtonImpl>
 {
 	// Step #3.2: Use the provided macro, this sets up the changeState function. Visibility is public thereafter.
 	BASE_STATE(ButtonStateIF)
@@ -44,8 +44,8 @@ class ButtonStateIF : public pocket_fsm::StateIF<ButtonImpl>
 	REACT(GetKeyCode) final;
 	
 	// Step #3.4: Define a default behaviour for onEntry/Exit, or leave it to concrete classes.
-	void onEntry() override {};
-	void onExit() override {};
+	REACT(OnEntry) override {};
+	REACT(OnExit) override {};
 
 	// Pure virtual ensures concrete classes have to define this function and use the enum
 	virtual E_ButtonState getState() const = 0;

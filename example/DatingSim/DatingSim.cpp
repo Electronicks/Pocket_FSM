@@ -2,7 +2,7 @@
 //
 
 #include <iostream>
-#include "EmotionalState.h"
+#include "LoveInterest.h"
 
 #define STR(state) #state
 

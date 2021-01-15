@@ -76,7 +76,7 @@ class BtnPress : public ButtonStateIF
 {
 	CONCRETE_STATE(BtnPress)
 
-	void onEntry() override
+	REACT(pocket_fsm::OnEntry) override
 	{
 		_pimpl->DisplayPress();
 	}
@@ -93,7 +93,7 @@ class BtnPress : public ButtonStateIF
 		printf("(%s) press false\n", _name);
 	}
 
-	void onExit() override
+	REACT(pocket_fsm::OnExit) override
 	{
 		_pimpl->DisplayRelease();
 	}

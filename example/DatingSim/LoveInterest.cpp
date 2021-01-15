@@ -1,4 +1,4 @@
-#include "EmotionalState.h"
+#include "LoveInterest.h"
 
 class Indifferent : public EmotionalState
 {
