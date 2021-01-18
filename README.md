@@ -1,28 +1,29 @@
 # Pocket FSM
 
-Pocket FSM is a single header lightweight and high performance Finite State Machine Framework to be used in any system. I believe that FSMs are an effective way to code any kind of software objects that can have states, sequences or simple message handling, and this framework makes it quicker and easier to code in such a way.
+Pocket FSM is a single header lightweight and high performance Finite State Machine Framework. It has minimal dependencies so that it can be used in any system. I believe that FSMs are an effective way to code any kind of software objects that can have states, sequences or simple message handling, and this framework makes it quicker and easier to code those software objects.
 
 ## What is a Finite State Machine?
 
-A finite state machine is a system that responds to input in a sequential manner. In other words, the inputs that come in provoke a change of the internal state of the machine, which will lead it to respond to inputs differently to the same input as its state changes. As such, technically speaking, all software objects that holds some fields and has methods that contains a condition on those fields are state machines. Nevertheless, not all objects have the need of using this framework, but it should help with those more complicated classes.
+A finite state machine is a system that responds to different inputs in a sequential manner. In other words, the inputs that come in provoke a change of the internal state of the machine, which will lead it to respond to inputs differently. As such, technically speaking, nearly all software controller objects are state machines. Nevertheless, not all objects would be better implemented as state machine ; but as the complexity grows, it becomes more likely that a state machine would be more appropriate.
 
-## Why not just use a switch-case statement and a state enum?
+## Can't I just use a switch-case statement and a state enum?
 
-This is probably the simplest, easiest and fastest way to implement a state machine. What more? It also leaves the code very easy to read and understand. It may be the best option for the simplest cases. However, it comes with a few tradeoffs. First is that you are likely to get some code repetition, especially on transitions and on entry and exit. Second is that it creates high dependencies among objects that may not or should not depend on each other. Finally, the switch statement becomes way too big way too quick, so it is unusable for anything slightly complex.
+This is probably the fastest way to implement a state machine. What more? It also leaves the code very easy to read and understand. It may be the best option for the simplest cases. However, it comes with a few tradeoffs. First is that you are likely to get some code repetition, especially on transitions and on entry and exit. Second is that it creates high dependencies among objects that may not or should not depend on each other. Finally, the switch statement becomes way too big way too quick, or there's too many of them, so it is unusable for anything more complex.
 
 ## So what does Pocket FSM do? Why should I use it?
 
-Using Pocket FSM, you can easily code a complex state machine from a state diagram document and produce good and reliable code that minmizes dependencies, has minimal memory overhead and good performance. It is easy to document and share with team members that may not care about how you implemented the machine, as long as it fullfills the state machine diagram.
+Pocket FSM provides an easy and intuitive way to code a complex state machine from a state diagram document and produce good and reliable code that minmizes dependencies, has minimal memory overhead and great performance. It is self documenting and abstracts away the inner workings of the state machine. It is easy to document and share with team members that may not care about how you implemented the machine, as long as it fullfills the state machine diagram.
 
 * The State Machine only ever holds a single state object in it and none others will exist until a change of state is requested.
 * Each state has it's own reaction to events but this is completely unknown to the user of the FSM thanks to polymorphism.
 * On a state change, the next state object is created and the previous one is deleted : which is a transaction of 64 bytes at most.
 * Pocket FSM uses the pImpl pattern to easily handoff an underlying object containing the logic and data that the state machine is controlling to the next state object without making a deep copy, or exposition outside of the state machine source file.
 * All memory management is taken care of by smart pointers.
-* Pocket FSM also enables easy use of RAII pattern by providing and guaranteing a single onEntry and onExit function call for each state.
+* Pocket FSM also enables easy use of RAII pattern by providing and guaranteing a single onEntry and onExit event call for each state.
 * Macros are used to provide quick, consistent and descriptive coding of the custom states
 * Compile time and debug-only runtime asserts make sure that appropriate error messages are displayed when a misuse of the framework occurs.
 * Stringified concrete state names provide easy logging
+* Built-in decoupling sets up for a proper Model-View-Controller triad.
 
 ## Why not use any of the other FSM frameworks
 
@@ -30,7 +31,7 @@ I haven't been able to find one that gave the developper enough simplicity and f
 
 ## Are there any requirements?
 
-Pocket FSM makes use of C++11 features such as lambdas and smart pointers from the STL, and thus requires at least this language level. There are no other dependencies.
+Pocket FSM makes use of C++11 features such as function objects and smart pointers from the STL, and thus requires at least this language level. There are no other dependencies.
 
 ## What's in the header
 
@@ -210,14 +211,14 @@ CombinationSafe::CombinationSafe()
 }
 ```
 
-The constructor creates the pimpl instance and the initial state. The function initialize is part of the base class and is required to use the state machine. The initial state will react to an entry event here to honor the RAII pattern. As mentioned previously, any parameters the pimpl needs for construction can be passed along right here. So now that the state machine is coded? How do you use it? Let's see what our coworker was working on since we gave him our header.
+The constructor creates the pimpl instance and the initial state. The function initialize is part of the base class and is required to use the state machine. The initial state will react to an entry event here to honor the RAII pattern. As mentioned previously, any parameters the pimpl needs for construction can be passed along right here. So now that the state machine is coded, how do you use it? Let's see what our coworker Jimmy was working on since we gave him our header.
 
 ```c++
 // File: main.cpp
 // Author: Jimmy
 // Date: January 18th 2021
 
-#include "CombinationSafe.h"
+#include "CombinationSafe.h" // Thanks for the header Electronicks
 
 int main()
 {
