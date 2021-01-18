@@ -84,20 +84,11 @@ class SafeState : public pocket_fsm::StatePimplIF<SafeImpl>
 	REACT(OnExit) override {};
 
 	// Default reactions => are unhandled
-	REACT(Configure)
-	{
-		std::cout << "[SAFE] Cannot configure the safe from state " << _name << std::endl;
-	}
+	REACT(Configure) { }
 
-	REACT(Number)
-	{
-		std::cout << "[SAFE] Cannot enter a digit from state " << _name << std::endl;
-	}
+	REACT(Number) { }
 
-	REACT(Reset)
-	{
-		std::cout << "[SAFE] Cannot reset the safe from state " << _name << std::endl;
-	}
+	REACT(Reset) { }
 };
 ```
 
