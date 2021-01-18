@@ -26,9 +26,9 @@ Pocket FSM provides an easy and intuitive way to code a complex state machine fr
 * Built-in decoupling sets up for a proper Model-View-Controller triad.
 
 Here's a  depiction of the separation done of the interface and the implementation.
-![alt text](https://github.com/Electronicks/Pocket_FSM/tree/master/doc/Decoupling_Plan.jpg "Decoupling Diagram")
+![Decoupling Plan](https://github.com/Electronicks/Pocket_FSM/tree/master/doc/Decoupling_Plan.jpg "Decoupling Diagram")
 
-On the left you can see the user of the state machine dealing with various structures, containing various fields if any, encompassing all of the state machine inputs. Those are sent to the state machine via the singular sendEvent function. Internally, the call is routed to the proper handler thanks to polymorphism and overloading. This layer can is where things move, objects are created and deleted and moved about as the state of the machine changes after each call. Finally, the rightmost layer contains the data and logic basic state machine 
+On the left you can see the user of the state machine dealing with various structures, containing various fields if any, encompassing all of the state machine inputs. Those are sent to the state machine via the singular sendEvent function. Internally, the call is routed to the proper handler thanks to polymorphism and overloading. This layer can is where things move, objects are created and deleted and moved about as the state of the machine changes after each call. Finally, the rightmost layer contains the data and logic for the output of the state machine, such as controlling some hardware. The objects on either end do not change, but the calls in between, the processing of the event by the current state does change. But this change is 100% opaque to either ends.
 
 
 ## Why not use any of the other FSM frameworks
