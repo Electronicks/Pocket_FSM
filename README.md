@@ -25,6 +25,12 @@ Pocket FSM provides an easy and intuitive way to code a complex state machine fr
 * Stringified concrete state names provide easy logging
 * Built-in decoupling sets up for a proper Model-View-Controller triad.
 
+Here's a  depiction of the separation done of the interface and the implementation.
+![alt text](https://github.com/Electronicks/Pocket_FSM/tree/master/doc/Decoupling_Plan.jpg "Decoupling Diagram")
+
+On the left you can see the user of the state machine dealing with various structures, containing various fields if any, encompassing all of the state machine inputs. Those are sent to the state machine via the singular sendEvent function. Internally, the call is routed to the proper handler thanks to polymorphism and overloading. This layer can is where things move, objects are created and deleted and moved about as the state of the machine changes after each call. Finally, the rightmost layer contains the data and logic basic state machine 
+
+
 ## Why not use any of the other FSM frameworks
 
 I haven't been able to find one that gave the developper enough simplicity and flexibility at the same time. Some require either having an instance of all states present at all times, or have a strict transition table that is hard to implement and use properly outside of the simplest cases. I just decided to do my own, trying to resolve the issues I've experienced with the existing ones.
@@ -80,19 +86,17 @@ class SafeState : public pocket_fsm::StatePimplIF<SafeImpl>
 	BASE_STATE(SafeState)
 	
 	// Override interface / unused
-	REACT(OnEntry) override {};
-	REACT(OnExit) override {};
+	REACT(OnEntry) override {}
+	REACT(OnExit) override {}
 
 	// Default reactions => are unhandled
-	REACT(Configure) { }
-
-	REACT(Number) { }
-
-	REACT(Reset) { }
+	REACT(Configure) {}
+	REACT(Number) {}
+	REACT(Reset) {}
 };
 ```
 
-Oh no, macros! Don't be spooked by those macros: they serve as both a consistent way to declare your states and a way to label your classes with their explicit purpose. The BASE_STATE macro is very important as it declares an  templated function key to the machine, which is the changeState<>() function. Visibility is set to public after the macro so you don't have to think about it. The REACT macros are not really necessary, but simply provides a consistent signature to your react functions to be used by the FSM. These react functions could be left pure virtual, defined empty, defined on the spot like in our case, or even labelled final. It's all up to your needs. Finally, the overrides of the interface reacts to entry and exit are defined empty by default. Take note it's important for the base state to not hold any data members: if you need data to be passed from one state to the next, the pimpl will hold those fields.
+Oh no, macros! Don't be spooked by those macros: they serve as both a consistent way to declare your states and a way to label your classes with their explicit purpose. The BASE_STATE macro is very important as it declares an  templated function key to the machine, which is the changeState<>() function. Visibility is set to public after the macro so you don't have to think about it. The REACT macros are not really necessary, but simply provides a consistent signature to your react functions. The base class has two internal react functions that require overriding, OnEntry and OnExit events. You then add a react functions for your own inputs you defined earlier. All the react functions can be left pure virtual, defined on the spot, defined empty like in our case, or even labelled final. It's all up to your needs. Take note it's important for the base state to not hold any data members: if you need data to be passed from one state to the next, the pimpl will hold those fields.
 
 This looks like a simple enough class. Now we need the machine itself that will be jugling the different states.
 
