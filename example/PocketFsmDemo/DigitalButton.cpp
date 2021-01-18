@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-// Step #5.1: Implement your pimpl! Hold all fields and declare all functions 
+// Step #5.1: Implement your pimpl. Hold all fields and declare all functions 
 // to perform whatever output your state machine is handling.
 class ButtonImpl {
 public:
@@ -33,7 +33,6 @@ public:
 	uint16_t _downKey = UINT16_MAX;
 
 	const char * _name;
-
 };
 
 // Step #5.2: Use the macro to define the specialized deleter for your pimpl
@@ -41,11 +40,11 @@ PIMPL_DELETER_DEF(ButtonImpl)
 
 // Step #6: Forward declare all your concrete states first, then for each concrete state:
 //  - Declare and use CONCRETE_STATE macro to set up constructor with stringified name
-//  - Implement all pure virtual functions and override those desired: onEntry/Exit and react(...)
-//  - Call changeState to transition after returning
-//  - Transition action is optional and occurs between exit and entry. Pimpl is still valid then.
-//  - The initial state needs a constructor that calls the provided macro.
-//  - Also implement final functions from the base state
+//  - The Initial State needs the macro of the same name for the initial construction.
+//  - Override react functions and any other pure virtual functions.
+//  - Call changeState to set up a transition after returning from react
+//  - Transition action is optional and occurs between exit and entry react calls. Pimpl is still valid then.
+//  - Also implement final or base reacts from the base state
 
 class NoPress;		// When the button is not pressed
 class BtnPress;		// When the button is indeed pressed
@@ -76,7 +75,7 @@ class BtnPress : public ButtonStateIF
 {
 	CONCRETE_STATE(BtnPress)
 
-	REACT(pocket_fsm::OnEntry) override
+	REACT(OnEntry) override
 	{
 		_pimpl->DisplayPress();
 	}
@@ -93,7 +92,7 @@ class BtnPress : public ButtonStateIF
 		printf("(%s) press false\n", _name);
 	}
 
-	REACT(pocket_fsm::OnExit) override
+	REACT(OnExit) override
 	{
 		_pimpl->DisplayRelease();
 	}
@@ -105,7 +104,7 @@ class BtnPress : public ButtonStateIF
 };
 
 // The base state's final functions will need a definition here
-// These include pimpl getters via events
+// The REACT macro won't work here unfortunately
 void ButtonStateIF::react(GetKeyCode &e)
 {
 	e.keycode = _pimpl->_downKey;
@@ -132,6 +131,7 @@ DigitalButton::DigitalButton(const char *name)
 
 void DigitalButton::lock()
 {
+	// Spin to win
 	while (!_dumbSpinlock.try_lock());
 }
 

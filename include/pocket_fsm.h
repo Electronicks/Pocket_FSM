@@ -6,7 +6,58 @@
 namespace pocket_fsm
 {
 
-// Cross platform assert to check for DEBUG runtime check
+	/************************************************************************************
+	                     M A C R O   D E F I N I T I O N S
+    -------------------------------------------------------------------------------------
+	BASE_STATE(BASENAME) : Put at the top of your base sate class header.
+	REACT(EVENT) : Function signature for react functions. Event parameter is e.
+	PIMPL_DELETER_DEF(PIMPL) : Define deleter function after the pimpl in source file.
+	CONCRETE_STATE(NAME) : Put at the top of all concrete states in source file.
+	INITIAL_STATE(NAME) : Put in the concrete state that will serve as initial state.
+	************************************************************************************/
+
+// Call this macro in your base state class deriving from StateIF or StatePimplIF<>.
+// It defines the changeState<NextState>() function for your concrete classes.
+#define BASE_STATE(BASENAME) \
+	protected: \
+		template<class S> \
+		void changeState(TransitionFunc onTransit = nullptr) { \
+			static_assert(std::is_base_of<BASENAME, S>::value, "Parameter of changeState needs to be a descendant of " #BASENAME); \
+			ASSERT_X_PLAT(!_nextState, LR"(You have already called " changeState<...>() " in this react!)"); \
+			_onTransition = onTransit; \
+			_nextState = new S(); \
+		} \
+	public:
+
+// Use this macro to reliaby declare your react functions with the proper signature.
+// The event parameter is simply named e ans is a non const reference.
+#define REACT(EVENT) \
+	virtual void react(EVENT &e)
+
+// Because the pimpl is only forward declared, the deleter needs to be defined where the pimpl is also defined.
+#define PIMPL_DELETER_DEF(PIMPL) \
+template<> \
+void pocket_fsm::PimplDeleter<PIMPL>::operator()(PIMPL *p) \
+{ delete p; }
+
+// Call this macro in a concrete state where NAME is the name of the class
+#define CONCRETE_STATE(NAME) \
+public: \
+	NAME() { _name=#NAME; }
+
+// Use this macro to define the constructor of your initial state.
+// It is given the new pimpl instance and it takes ownership of it
+// This macro is technically only necessary if you use a pimpl, but it's good labelling.
+#define INITIAL_STATE(NAME) \
+public: \
+	NAME(PimplType *newPimpl) \
+		: NAME() \
+	{ \
+		_pimpl = PimplSmartPtr(newPimpl); \
+	}
+
+
+// Cross platform assert used for DEBUG runtime check
 #if defined(WIN32)
 #define ASSERT_X_PLAT(expr, msg) _ASSERT_EXPR(expr, msg)
 #elif defined (UNIX)
@@ -14,17 +65,18 @@ namespace pocket_fsm
 #define X_PLAT_ASSERT(expr, msg) assert(expr && msg)
 #endif
 
-// This declaration is to be specialized for every instance by using the PIMPL_DELETER_DEF macro
+// This declaration requires to be specialized for every instance by using the PIMPL_DELETER_DEF macro
 template<class Pimpl>
 struct PimplDeleter
 {
 	void operator()(Pimpl *);
 };
 
-struct OnEntry { private: OnEntry() = default; friend class InternalPrivilege; };
-struct OnExit { private: OnExit() = default; friend class InternalPrivilege; };
+// OnEntry and OnExit are internal events that cannot be raised outside of the State Machine
+struct OnEntry { };
+struct OnExit { };
 
-// State that has no pimpl
+// The State interface holds the transition call logic.
 class StateIF
 {
 public:
@@ -45,27 +97,34 @@ public:
 	
 	// These functions are run when the state becomes active or inactive
 	// The function run on transition occur between these events
-	virtual void react(OnEntry &e) = 0;
-	virtual void react(OnExit &e) = 0;
+	REACT(OnEntry) = 0;
+	REACT(OnExit) = 0;
+
+	// The next state is registered by a call to changeState<>()
 	inline StateIF *getNextState()
 	{
 		return _nextState;
 	}
 
+	// Stringified name of the concrete class
 	const char *_name = nullptr;
 
 protected:
+	// Beautifier
 	using PimplType = void;
 	using TransitionFunc = std::function<void()>; 	// Signature for a function to be used during transition
 
+	// The next state registered for transition
 	StateIF *_nextState = nullptr;
+
+	// Function to be run on transition (i.e. between the exit and entry call.
 	TransitionFunc _onTransition = nullptr;
 };
 
 
-// The State interface holds transition call logic. It hold a Pointer to IMPLementation that is passed
-// to the next state on destruction.
-template<class Pimpl>
+// This version of StateIF holds a Pointer to IMPLementation 
+// that is passed to the next state on destruction.
+template<typename Pimpl>
 class StatePimplIF : public StateIF
 {
 public:
@@ -94,33 +153,28 @@ protected:
 	using PimplType = Pimpl;
 
 	// Pointer to implementation. This object will contain all internal logic and is unknown outside of the states.
-	// unique_ptr doesn't work here because it causes compilation issues regarding deleting forward declared classes.
 	PimplSmartPtr _pimpl = { nullptr };
-};
-
-class InternalPrivilege
-{
-protected:
-	OnEntry entry;
-	OnExit exit;
 };
 
 // The State Machine handles sending events to the current state and manages state transitions. Derive from this class
 // with your state base class and Implementation class as parameters and set up a constructor with your initial state.
-// Parameter of FiniteStateMachine needs to be a descendant of StateIF
+// Parameter of FiniteStateMachine needs to be a descendant of StateIF or StatePimplIF<>
 template<class S>
-class FiniteStateMachine : protected InternalPrivilege
+class FiniteStateMachine
 {
 public:
 	// Basic constructor / destructor
 	FiniteStateMachine() = default;
 	virtual ~FiniteStateMachine() 
 	{
+		OnExit exit;
 		_currentState->react(exit); // Cleanup
 	}
 
-	// Call this method with an object that S can react to!
-	template<class E>
+	// Call this method with an object that S can react to.
+	// You cannot call internal events such as OnEntry and OnExit externally!
+	template<typename E, typename = typename std::enable_if<
+		!std::is_same<E, OnEntry>::value && !std::is_same<E, OnExit>::value>::type >
 	void sendEvent(E &evt)
 	{
 		ASSERT_X_PLAT(_currentState, L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
@@ -135,6 +189,7 @@ public:
 		unlock();
 	}
 
+	// Get the stringified name of the concrete class
 	inline const char * getCurrentStateName() const
 	{
 		ASSERT_X_PLAT(_currentState, L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
@@ -147,9 +202,16 @@ protected:
 	{
 		ASSERT_X_PLAT(!_currentState, L"You already initialized me!");
 		_currentState.reset(initialState);
+		OnEntry entry;
 		_currentState->react(entry);
+		while (_currentState->getNextState()) // Entry usually doesn't changeState, but it can.
+		{
+			// This cast is safe because of the static assert in this class
+			changeState(static_cast<S*>(_currentState->getNextState()));
+		}
 	}
 
+	// Const accessor to the current state
 	inline const S* getCurrentState() const
 	{
 		return _currentState.get();
@@ -164,6 +226,8 @@ private:
 	// This function performs the state transition and calls state events
 	void changeState(S *nextState)
 	{
+		OnExit exit;
+		OnEntry entry;
 		_currentState->react(exit);
 		_currentState.reset(nextState); // old state destructor calls onTransition, hands off pimpl and gets deleted
 		_currentState->react(entry);
@@ -172,44 +236,5 @@ private:
 	// The current state of the machine.
 	std::unique_ptr<S> _currentState = nullptr;
 };
-
-// Call this macro in your base state class deriving from StateIF.
-// It defines the changeState<NextState>() function for your concrete classes.
-#define BASE_STATE(BASENAME) \
-	protected: \
-		template<class S> \
-		void changeState(TransitionFunc onTransit = nullptr) { \
-			static_assert(std::is_base_of<BASENAME, S>::value, "Parameter of changeState needs to be a descendant of " #BASENAME); \
-			ASSERT_X_PLAT(!_nextState, LR"(You have already called " changeState<...>() " in this react!)"); \
-			_onTransition = onTransit; \
-			_nextState = new S(); \
-		} \
-	public:
-
-// Use this macro to reliaby declare your react functions with the proper signature.
-// Follow up with a semicolon, =0, final, {} or whatever suits your needs.
-// The event parameter is simply named e
-#define REACT(EVENT) \
-	virtual void react(EVENT &e)
-
-// Because the pimpl is only forward declared, the deleter needs to be defined where the pimpl is also defined.
-#define PIMPL_DELETER_DEF(PIMPL) \
-template<> \
-void pocket_fsm::PimplDeleter<PIMPL>::operator()(PIMPL *p) \
-{ delete p; }
-
-// Call this macro in a concrete state where NAME is the name of the class
-#define CONCRETE_STATE(NAME) \
-public: \
-	NAME() { _name=#NAME; }
-
-// Use this macro to define the constructor of your initial state.
-// It is given the new pimpl instance and it takes ownership of it
-#define INITIAL_STATE(NAME) \
-	NAME(PimplType *newPimpl) \
-		: NAME() \
-	{ \
-		_pimpl = PimplSmartPtr(newPimpl); \
-	}
 
 } // End of namespace

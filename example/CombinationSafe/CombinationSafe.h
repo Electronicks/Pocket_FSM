@@ -1,44 +1,50 @@
-#pragma once
+// File: CombinationSafe.h
+// Author: Electronicks
+// Date: January 18th 2021
 
+#pragma once // Header sentinel
+
+// Include the framework to use it.
 #include "pocket_fsm.h"
 #include <forward_list>
 #include <iostream>
 
-// My pimpl
+// I will need a pimpl to hold the combination and possibly more
 struct SafeImpl;
 
-// State inputs
+// State machine inputs
 struct Configure { std::forward_list<int> combination; };
 struct Number { int digit;  };
 struct Reset {};
 
 // Concrete states
-class Open;
-class Locked;
-class Lockdown;
+class Open; 		// The safe is open and waiting for a configuration
+class Locked;		// The safe is locked and processing digits from the user
+class Lockdown;		// The safe is in lockdown and requires a reset to use again.
 
 class SafeState : public pocket_fsm::StatePimplIF<SafeImpl>
 {
 	BASE_STATE(SafeState)
 
+	// Override interface / unused
+	REACT(OnEntry) override {};
+	REACT(OnExit) override {};
+
 	// Default reactions => are unhandled
 	REACT(Configure)
 	{
-		std::cout << "[LOCK] Cannot configure the lock from state " << _name << std::endl;
+		std::cout << "[SAFE] Cannot configure the safe from state " << _name << std::endl;
 	}
 
 	REACT(Number)
 	{
-		std::cout << "[LOCK] Cannot enter a digit from state " << _name << std::endl;
+		std::cout << "[SAFE] Cannot enter a digit from state " << _name << std::endl;
 	}
 
 	REACT(Reset)
 	{
-		std::cout << "[LOCK] Cannot reset the lock from state " << _name << std::endl;
+		std::cout << "[SAFE] Cannot reset the safe from state " << _name << std::endl;
 	}
-	
-	REACT(OnEntry) override {};
-	REACT(OnExit) override {};
 };
 
 class CombinationSafe : public pocket_fsm::FiniteStateMachine<SafeState>
@@ -46,3 +52,5 @@ class CombinationSafe : public pocket_fsm::FiniteStateMachine<SafeState>
 public:
 	CombinationSafe();
 };
+
+// End of CombinationLock.h

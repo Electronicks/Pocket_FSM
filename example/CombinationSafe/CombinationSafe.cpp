@@ -1,3 +1,7 @@
+// File: CombinationSafe.h
+// Author: Electronicks
+// Date: January 18th 2021
+
 #include "CombinationSafe.h"
 
 struct SafeImpl
@@ -13,6 +17,26 @@ struct SafeImpl
 		_p = _combination.cbegin();
 		_error = false;
 	}
+
+	void Open()
+	{
+		std::cout << "[SAFE] *Beep* *Beep* *Click* Ta-da!" << std::endl;
+	}
+
+	void Close()
+	{
+		std::cout << "[Safe] *Click* *Grinck* *Boop* *Boop*" << std::endl;
+	}
+
+	void Lockdown()
+	{
+		std::cout << "[Safe] *WAH* *WAH* *WAH* *WAH*" << std::endl;
+	}
+
+	void Clear()
+	{
+		std::cout << "[Safe] *Beep* *Boop*" << std::endl;
+	}
 };
 
 PIMPL_DELETER_DEF(SafeImpl);
@@ -22,6 +46,11 @@ class Open : public SafeState
 	CONCRETE_STATE(Open)
 
 	INITIAL_STATE(Open)
+
+	REACT(OnEntry) override
+	{
+		_pimpl->Open();
+	}
 
 	REACT(Configure) override
 	{
@@ -37,6 +66,11 @@ class Open : public SafeState
 class Locked : public SafeState
 {
 	CONCRETE_STATE(Locked)
+
+	REACT(OnEntry) override
+	{
+		_pimpl->Close();
+	}
 
 	REACT(Number) override
 	{
@@ -55,7 +89,7 @@ class Locked : public SafeState
 
 	REACT(Reset) override
 	{
-		_pimpl->Reset();
+		_pimpl->Clear();
 	}
 };
 
@@ -63,10 +97,20 @@ class Lockdown : public SafeState
 {
 	CONCRETE_STATE(Lockdown)
 
+	REACT(OnEntry)
+	{
+		_pimpl->Lockdown();
+	}
+
 	REACT(Reset) override
 	{
 		_pimpl->Reset();
 		changeState<Locked>();
+	}
+
+	REACT(OnExit)
+	{
+		_pimpl->Reset();
 	}
 };
 

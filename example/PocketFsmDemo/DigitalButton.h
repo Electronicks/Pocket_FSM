@@ -32,21 +32,22 @@ class ButtonStateIF : public pocket_fsm::StatePimplIF<ButtonImpl>
 	// Step #3.2: Use the provided macro, this sets up the changeState function. Visibility is public thereafter.
 	BASE_STATE(ButtonStateIF)
 
-	// Step #3.3: Declare a react function for each event in Step 1. Use macro to ensure consistent signature.
-	// Implement default behaviour, leave or mark final.
+	// Step #3.3: Override base class reactions to OnEntry/OnExit, or leave it to concrete classes.
+	REACT(OnEntry) override {};
+	REACT(OnExit) override {};
+
+	// Step #3.4: Declare a react function for each event in Step 2. Use macro to ensure consistent signature.
+	// Implement default behaviour, leave undefined or mark final.
 	REACT(PressEvent) {};
 	REACT(ReleaseEvent) 
 	{ 
 		e.result = false; 
 	};
+
 	// You can make sure all event have the same reaction by making the react function final
 	REACT(ResetEvt) final;
 	REACT(GetKeyCode) final;
 	
-	// Step #3.4: Define a default behaviour for onEntry/Exit, or leave it to concrete classes.
-	REACT(OnEntry) override {};
-	REACT(OnExit) override {};
-
 	// Pure virtual ensures concrete classes have to define this function and use the enum
 	virtual E_ButtonState getState() const = 0;
 };
@@ -58,15 +59,15 @@ public:
 	// Add parameters required to instantiate your pimpl
 	DigitalButton(const char *name);
 
-	// Getter for custom state identifier
+	// Getter for custom state identifier. This is arguably better than the stringified name of the class.
 	inline E_ButtonState getState()
 	{
 		return getCurrentState()->getState();
 	}
 
 protected:
-// Step #4.2: Optionally declare a lock object field and override lock/unlock() to secure cross thread operation.
 
+	// Step #4.2: Optionally declare a lock object field and override lock/unlock() to secure cross thread operation.
 	std::shared_mutex _dumbSpinlock;
 
 	void lock() override;
