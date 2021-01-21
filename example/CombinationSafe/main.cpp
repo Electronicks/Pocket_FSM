@@ -10,7 +10,7 @@ int main()
 	CombinationSafe lock;
 	while (true)
 	{
-		std::cout << std::endl << "The lock is currently currently " << lock.getCurrentStateName() << std::endl <<
+		std::cout << std::endl << "The lock is currently " << lock.getCurrentStateName() << std::endl <<
 			"What would you like to do?" << std::endl <<
 			"1. Configure" << std::endl <<
 			"2. Enter a number" << std::endl <<

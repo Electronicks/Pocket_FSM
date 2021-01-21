@@ -26,7 +26,7 @@
     <ClInclude Include="DigitalButton.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\pocket_fsm.h">
+    <ClInclude Include="..\..\include\pocket_fsm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

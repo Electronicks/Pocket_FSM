@@ -157,7 +157,7 @@
     <ClCompile Include="PocketFsmDemo.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\include\pocket_fsm.h" />
+    <ClInclude Include="..\..\include\pocket_fsm.h" />
     <ClInclude Include="DigitalButton.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

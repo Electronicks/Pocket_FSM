@@ -15,7 +15,7 @@ This is probably the fastest way to implement a state machine. What more? It als
 Pocket FSM provides an easy and intuitive way to code a complex state machine from a state diagram document and produce good and reliable code that minmizes dependencies, has minimal memory overhead and great performance. It is self documenting and abstracts away the inner workings of the state machine. It is easy to document and share with team members that may not care about how you implemented the machine, as long as it fullfills the state machine diagram.
 
 * The State Machine only ever holds a single state object in it and none others will exist until a change of state is requested.
-* Each state has it's own reaction to events but this is completely unknown to the user of the FSM thanks to polymorphism.
+* Each state has its own reaction to events but this is completely unknown to the user of the FSM thanks to polymorphism.
 * On a state change, the next state object is created and the previous one is deleted : which is a transaction of 64 bytes at most.
 * Pocket FSM uses the pImpl pattern to easily handoff an underlying object containing the logic and data that the state machine is controlling to the next state object without making a deep copy, or exposition outside of the state machine source file.
 * All memory management is taken care of by smart pointers.
@@ -112,7 +112,7 @@ public:
 
 Well, that is deceptively simple. Is that really it? Well, there are optional lock() and unlock() function that can be overriden to implement a mutex if you plan on sending events from different threads. Also, the machine constructor will be constructing the pimpl, so if it needs any parameters at construction it should be passed here, but we may not know what those are yet. Otherwise, yeah that's it! Of course you can add to it any method and field might seem pertinent, but remember that iteraction with the pimpl should only pass through event reactions.
 
-So that's our header file. At this point it can be shared with coworkers that may desire to start coding it's usage since they have the full interface to the state machine. For us, we need to start coding the implementation itself. So let's start writing our complementary source file. First step here is to define our pimpl that was forward declared in the header. Obviously the implementation can be done in different ways, so the way I choose here is primarily for the purpose of demonstration more than anything else.
+So that's our header file. At this point it can be shared with our coworker Jimmy that may desire to start coding its usage since they have the full interface to the state machine. For us, we need to start coding the implementation itself. So let's start writing our complementary source file. First step here is to define our pimpl that was forward declared in the header. Obviously the implementation can be done in different ways, so the way I choose here is primarily for the purpose of demonstration more than anything else.
 
 ```c++
 // File: CombinationSafe.cpp
@@ -220,7 +220,7 @@ int main()
 	CombinationSafe safe;
 	while (true) // type q to quit
 	{
-		std::cout << std::endl << "The safe is currently currently " << safe.getCurrentStateName() << std::endl <<
+		std::cout << std::endl << "The safe is currently " << safe.getCurrentStateName() << std::endl <<
 			"What would you like to do?" << std::endl <<
 			"1. Configure" << std::endl <<
 			"2. Enter a number" << std::endl <<

@@ -6,15 +6,17 @@
 namespace pocket_fsm
 {
 
-	/************************************************************************************
-	                     M A C R O   D E F I N I T I O N S
-    -------------------------------------------------------------------------------------
-	BASE_STATE(BASENAME) : Put at the top of your base sate class header.
-	REACT(EVENT) : Function signature for react functions. Event parameter is e.
-	PIMPL_DELETER_DEF(PIMPL) : Define deleter function after the pimpl in source file.
-	CONCRETE_STATE(NAME) : Put at the top of all concrete states in source file.
-	INITIAL_STATE(NAME) : Put in the concrete state that will serve as initial state.
-	************************************************************************************/
+/************************************************************************************
+	                    M A C R O   D E F I N I T I O N S
+-------------------------------------------------------------------------------------
+
+BASE_STATE(BASENAME) : Put at the top of your base state class header.
+REACT(EVENT) : Function signature for react functions. Event parameter is e.
+PIMPL_DELETER_DEF(PIMPL) : Define deleter function after the pimpl in source file.
+CONCRETE_STATE(NAME) : Put at the top of all concrete states in source file.
+INITIAL_STATE(NAME) : Put in the concrete state that will serve as initial state.
+
+************************************************************************************/
 
 // Call this macro in your base state class deriving from StateIF or StatePimplIF<>.
 // It defines the changeState<NextState>() function for your concrete classes.
@@ -23,7 +25,7 @@ namespace pocket_fsm
 		template<class S> \
 		void changeState(TransitionFunc onTransit = nullptr) { \
 			static_assert(std::is_base_of<BASENAME, S>::value, "Parameter of changeState needs to be a descendant of " #BASENAME); \
-			ASSERT_X_PLAT(!_nextState, LR"(You have already called " changeState<...>() " in this react!)"); \
+			pocket_fsm::internal::ASSERT_X_PLAT(!_nextState, LR"(You have already called " changeState<...>() " in this react!)"); \
 			_onTransition = onTransit; \
 			_nextState = new S(); \
 		} \
@@ -37,7 +39,7 @@ namespace pocket_fsm
 // Because the pimpl is only forward declared, the deleter needs to be defined where the pimpl is also defined.
 #define PIMPL_DELETER_DEF(PIMPL) \
 template<> \
-void pocket_fsm::PimplDeleter<PIMPL>::operator()(PIMPL *p) \
+void pocket_fsm::internal::PimplDeleter<PIMPL>::operator()(PIMPL *p) \
 { delete p; }
 
 // Call this macro in a concrete state where NAME is the name of the class
@@ -53,36 +55,43 @@ public: \
 	NAME(PimplType *newPimpl) \
 		: NAME() \
 	{ \
+		pocket_fsm::internal::ASSERT_X_PLAT(newPimpl, L"You need to pass a pimpl instance to the initial state!"); \
 		_pimpl = PimplSmartPtr(newPimpl); \
 	}
 
+// This namespace includes all things to be obfuscated from users of the header and only relate to the inner workings of pocket_fsm
+namespace internal {
 
-// Cross platform assert used for DEBUG runtime check
-#if defined(WIN32)
-#define ASSERT_X_PLAT(expr, msg) _ASSERT_EXPR(expr, msg)
-#elif defined (UNIX)
-#include <cassert>
-#define X_PLAT_ASSERT(expr, msg) assert(expr && msg)
-#endif
+	// Cross platform assert used for DEBUG runtime check
+	#if defined(WIN32)
+	constexpr void ASSERT_X_PLAT(bool expr, const wchar_t *msg) { _ASSERT_EXPR(expr, msg); }
+	#elif defined (UNIX)
+	#include <cassert>
+	#define ASSERT_X_PLAT(expr, msg) assert(expr && msg)
+	#endif
 
-// This declaration requires to be specialized for every instance by using the PIMPL_DELETER_DEF macro
-template<class Pimpl>
-struct PimplDeleter
-{
-	void operator()(Pimpl *);
-};
 
-// OnEntry and OnExit are internal events that cannot be raised outside of the State Machine
-struct OnEntry { };
-struct OnExit { };
+	// This declaration requires to be specialized for every instance by using the PIMPL_DELETER_DEF macro
+	template<class Pimpl>
+	struct PimplDeleter
+	{
+		void operator()(Pimpl *);
+	};
 
-// The State interface holds the transition call logic.
+	// OnEntry and OnExit are internal events that cannot be raised outside of the State Machine
+	struct OnEntry { };
+	struct OnExit { };
+}
+
+// The State interface is the base class for any state object. It holds transition logic and
+// pure virtual reaction function to internal events. Derive your base class from this if you
+// do not need a pimpl
 class StateIF
 {
 public:
 	// Useful typedefs
-	using OnEntry = pocket_fsm::OnEntry;
-	using OnExit = pocket_fsm::OnExit;
+	using OnEntry = pocket_fsm::internal::OnEntry;
+	using OnExit = pocket_fsm::internal::OnExit;
 
 	// All states should be created clean : no copying allowed!
 	StateIF() = default;
@@ -100,7 +109,7 @@ public:
 	REACT(OnEntry) = 0;
 	REACT(OnExit) = 0;
 
-	// The next state is registered by a call to changeState<>()
+	// The next state is registered by a call to changeState<NextState>()
 	inline StateIF *getNextState()
 	{
 		return _nextState;
@@ -121,9 +130,9 @@ protected:
 	TransitionFunc _onTransition = nullptr;
 };
 
-
-// This version of StateIF holds a Pointer to IMPLementation 
-// that is passed to the next state on destruction.
+// This variant of StateIF additionally holds a Pointer to IMPLementation.
+// The pimpl object is handed off during transition and thus stays in
+// memory until the state machine itself is deleted.
 template<typename Pimpl>
 class StatePimplIF : public StateIF
 {
@@ -147,22 +156,27 @@ public:
 			_pimpl.swap(static_cast<StatePimplIF<PimplType>*>(_nextState)->_pimpl);
 		}
 	}
+
 protected:
 	// Beautifiers
-	using PimplSmartPtr = std::unique_ptr<Pimpl, PimplDeleter<Pimpl>>;
+	using PimplSmartPtr = std::unique_ptr<Pimpl, internal::PimplDeleter<Pimpl>>;
 	using PimplType = Pimpl;
 
 	// Pointer to implementation. This object will contain all internal logic and is unknown outside of the states.
 	PimplSmartPtr _pimpl = { nullptr };
 };
 
-// The State Machine handles sending events to the current state and manages state transitions. Derive from this class
-// with your state base class and Implementation class as parameters and set up a constructor with your initial state.
-// Parameter of FiniteStateMachine needs to be a descendant of StateIF or StatePimplIF<>
+// The State Machine handles sending events to the current state and operates state transitions. Derive from this class
+// with your base state class as parameters and set up a constructor that initializes the initial state.
 template<class S>
 class FiniteStateMachine
 {
+	static_assert(std::is_base_of<StateIF, S>::value, "The parameter of FiniteStateMachine needs to be a descendant of StateIF");
+	using OnEntry = internal::OnEntry;
+	using OnExit = internal::OnExit;
+
 public:
+
 	// Basic constructor / destructor
 	FiniteStateMachine() = default;
 	virtual ~FiniteStateMachine() 
@@ -173,17 +187,17 @@ public:
 
 	// Call this method with an object that S can react to.
 	// You cannot call internal events such as OnEntry and OnExit externally!
-	template<typename E, typename = typename std::enable_if<
-		!std::is_same<E, OnEntry>::value && !std::is_same<E, OnExit>::value>::type >
+	template<typename E>
 	void sendEvent(E &evt)
 	{
-		ASSERT_X_PLAT(_currentState, L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
+		static_assert(!std::is_same<E, OnEntry>::value && !std::is_same<E, OnExit>::value, "Cannot send an internal event");
+		internal::ASSERT_X_PLAT(_currentState.get(), L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
 		lock();
 		_currentState->react(evt);
 		while (_currentState->getNextState())
 		{
 			// This cast is safe because of the static assert in this class
-			changeState(static_cast<S*>(_currentState->getNextState()));
+			setCurrentState(static_cast<S*>(_currentState->getNextState()));
 		}
 		// else, event did not raise a change of state, moving along
 		unlock();
@@ -192,7 +206,7 @@ public:
 	// Get the stringified name of the concrete class
 	inline const char * getCurrentStateName() const
 	{
-		ASSERT_X_PLAT(_currentState, L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
+		internal::ASSERT_X_PLAT(_currentState.get(), L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
 		return _currentState->_name;
 	}
 
@@ -200,14 +214,16 @@ protected:
 	// Descendants call this in their constructor to set the initial state. The state machine takes ownership of the pointer.
 	void initialize(S *initialState) 
 	{
-		ASSERT_X_PLAT(!_currentState, L"You already initialized me!");
+		internal::ASSERT_X_PLAT(initialState, L"Need to pass an initial state to the initialize function.");
+		internal::ASSERT_X_PLAT(!_currentState, L"You already initialized me!");
+
 		_currentState.reset(initialState);
 		OnEntry entry;
 		_currentState->react(entry);
 		while (_currentState->getNextState()) // Entry usually doesn't changeState, but it can.
 		{
 			// This cast is safe because of the static assert in this class
-			changeState(static_cast<S*>(_currentState->getNextState()));
+			setCurrentState(static_cast<S*>(_currentState->getNextState()));
 		}
 	}
 
@@ -224,7 +240,7 @@ protected:
 
 private:
 	// This function performs the state transition and calls state events
-	void changeState(S *nextState)
+	void setCurrentState(S *nextState)
 	{
 		OnExit exit;
 		OnEntry entry;
