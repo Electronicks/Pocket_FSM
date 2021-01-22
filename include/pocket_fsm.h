@@ -2,6 +2,9 @@
 
 #include <functional> // std::function
 #include <memory>     // std::unique_ptr
+#if defined (UNIX)
+#include <cassert>
+#endif
 
 namespace pocket_fsm
 {
@@ -25,7 +28,7 @@ INITIAL_STATE(NAME) : Put in the concrete state that will serve as initial state
 		template<class S> \
 		void changeState(TransitionFunc onTransit = nullptr) { \
 			static_assert(std::is_base_of<BASENAME, S>::value, "Parameter of changeState needs to be a descendant of " #BASENAME); \
-			pocket_fsm::internal::ASSERT_X_PLAT(!_nextState, LR"(You have already called " changeState<...>() " in this react!)"); \
+			pocket_fsm::internal::ASSERT(!_nextState, LR"(You have already called " changeState<...>() " in this react!)"); \
 			_onTransition = onTransit; \
 			_nextState = new S(); \
 		} \
@@ -55,7 +58,7 @@ public: \
 	NAME(PimplType *newPimpl) \
 		: NAME() \
 	{ \
-		pocket_fsm::internal::ASSERT_X_PLAT(newPimpl, L"You need to pass a pimpl instance to the initial state!"); \
+		pocket_fsm::internal::ASSERT(newPimpl, L"You need to pass a pimpl instance to the initial state!"); \
 		_pimpl = PimplSmartPtr(newPimpl); \
 	}
 
@@ -63,12 +66,13 @@ public: \
 namespace internal {
 
 	// Cross platform assert used for DEBUG runtime check
-	#if defined(WIN32)
-	constexpr void ASSERT_X_PLAT(bool expr, const wchar_t *msg) { _ASSERT_EXPR(expr, msg); }
-	#elif defined (UNIX)
-	#include <cassert>
-	#define ASSERT_X_PLAT(expr, msg) assert(expr && msg)
-	#endif
+	constexpr void ASSERT(bool expr, const wchar_t *msg) { 
+		#if defined(WIN32)
+			_ASSERT_EXPR(expr, msg); 
+		#elif defined (UNIX)
+			assert(expr && msg);
+		#endif
+	}
 
 
 	// This declaration requires to be specialized for every instance by using the PIMPL_DELETER_DEF macro
@@ -191,7 +195,7 @@ public:
 	void sendEvent(E &evt)
 	{
 		static_assert(!std::is_same<E, OnEntry>::value && !std::is_same<E, OnExit>::value, "Cannot send an internal event");
-		internal::ASSERT_X_PLAT(_currentState.get(), L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
+		internal::ASSERT(_currentState.get(), L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
 		lock();
 		_currentState->react(evt);
 		while (_currentState->getNextState())
@@ -206,7 +210,7 @@ public:
 	// Get the stringified name of the concrete class
 	inline const char * getCurrentStateName() const
 	{
-		internal::ASSERT_X_PLAT(_currentState.get(), L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
+		internal::ASSERT(_currentState.get(), L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
 		return _currentState->_name;
 	}
 
@@ -214,8 +218,8 @@ protected:
 	// Descendants call this in their constructor to set the initial state. The state machine takes ownership of the pointer.
 	void initialize(S *initialState) 
 	{
-		internal::ASSERT_X_PLAT(initialState, L"Need to pass an initial state to the initialize function.");
-		internal::ASSERT_X_PLAT(!_currentState, L"You already initialized me!");
+		internal::ASSERT(initialState, L"Need to pass an initial state to the initialize function.");
+		internal::ASSERT(!_currentState, L"You already initialized me!");
 
 		_currentState.reset(initialState);
 		OnEntry entry;
