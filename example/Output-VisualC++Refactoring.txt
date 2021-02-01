@@ -1,7 +1,0 @@
-﻿
-Renamed 'Digit' to 'Number':
-----------------------------
-C:\Users\ezlesni\Repo\pocket_fsm\example\CombinationLock\CombinationLock.cpp(46, 4)
-C:\Users\ezlesni\Repo\pocket_fsm\example\CombinationLock\LockState.cpp(41, 8)
-C:\Users\ezlesni\Repo\pocket_fsm\example\CombinationLock\LockState.h(12, 8)
-C:\Users\ezlesni\Repo\pocket_fsm\example\CombinationLock\LockState.h(30, 8)
