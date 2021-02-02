@@ -4,7 +4,7 @@ Pocket FSM is a single header lightweight and high performance Finite State Mach
 
 ## What is a Finite State Machine?
 
-A finite state machine is a system that responds to different inputs in a sequential manner. In other words, the inputs that come in provoke a change of the internal state of the machine, which will lead it to respond to inputs differently. As such, technically speaking, nearly all software controller objects are state machines. Nevertheless, not all objects would be better implemented as state machine ; but as the complexity grows, it becomes more likely that a state machine would be more appropriate.
+A finite state machine is a system that responds differently to inputs depending on the sequence. In other words, the inputs that come in provoke a change of the internal state of the machine, which will lead it to respond to inputs differently. As such, technically speaking, nearly all software controller objects are state machines. Nevertheless, not all objects would be better implemented as state machine ; but as the complexity grows, it becomes more likely that a state machine would be more appropriate.
 
 ## Can't I just use a switch-case statement and a state enum?
 
@@ -30,7 +30,6 @@ Here's a  depiction of the separation done of the interface and the implementati
 
 On the left you can see the user of the state machine dealing with various structures, containing various fields if any, encompassing all of the state machine inputs. Those are sent to the state machine via the singular sendEvent function. Internally, the call is routed to the proper handler thanks to polymorphism and overloading. This layer can is where things move, objects are created and deleted and moved about as the state of the machine changes after each call. Finally, the rightmost layer contains the data and logic for the output of the state machine, such as controlling some hardware. The objects on either end do not change, but the calls in between, the processing of the event by the current state does change. But this change is 100% opaque to either ends.
 
-
 ## Why not use any of the other FSM frameworks
 
 I haven't been able to find one that gave the developper enough simplicity and flexibility at the same time. Some require either having an instance of all states present at all times, or have a strict transition table that is hard to implement and use properly outside of the simplest cases. I just decided to do my own, trying to resolve the issues I've experienced with the existing ones.
@@ -44,7 +43,6 @@ Pocket FSM makes use of C++11 features such as function objects and smart pointe
 All the content of the header is in the pocket_fsm namespace exept the macros which are always global. You will find the following in the Pocket FSM header:
 * A macro ASSERT_X_PLAT in order to perform asserts in debug configuration. This will inform the developer of any misuse of the framework and it has zero impact in release.
 * A macro REACT that defines a uniform signature for all react functions
-* A functor declaration PimplDeleter, which is to be defined with a macro provided at the end of the file
 * A class StateIF to be templated with the forward declaration of your pimpl. It is pure virtual so you need to create your own base state class. There's also a specializer for a version without pimpl.
 * A class FiniteStateMachine, templated with your base state class. The state machine you will be using will be a child of this class.
 * A set of macros to use in your custom state classes. The macros make use of the stringify feature and help with creating consistent signatures and constructors for your classes. If a macro hinders what you are trying to do, feel free to write its expansion. Take note that all *_STATE() macros make the class member visibility public thereafter.
@@ -121,7 +119,7 @@ So that's our header file. At this point it can be shared with our coworker Jimm
 
 #include "CombinationSafe.h"
 
-struct SafeImpl
+struct SafeImpl : public pocket_fsm::PimplBase
 {
 	std::forward_list<int> _combination;
 	std::forward_list<int>::const_iterator _p;
@@ -148,7 +146,7 @@ class Open : public SafeState
 	{
 		if (!e.combination.empty())
 		{
-			_pimpl->_combination = e.combination;
+			pimpl()->_combination = e.combination;
 			_p = _combination.cbegin();	// Reset function?!
 			_error = false;
 			changeState<Locked>();
@@ -166,13 +164,13 @@ class Locked : public SafeState
 
 	REACT(Number) override
 	{
-		_pimpl->_error |= e.digit != *_pimpl->_p;
+		pimpl()->_error |= e.digit != *_pimpl->_p;
 
-		_pimpl->_p++;
+		pimpl()->_p++;
 
-		if (_pimpl->_p == _pimpl->_combination.cend())
+		if (pimpl()->_p == _pimpl->_combination.cend())
 		{
-			if (_pimpl->_error)
+			if (pimpl()->_error)
 				changeState<Lockdown>();
 			else
 				changeState<Open>();
@@ -181,7 +179,7 @@ class Locked : public SafeState
 
 	REACT(Reset) override
 	{
-		_pimpl->Reset();
+		pimpl()->Reset();
 	}
 };
 
@@ -191,7 +189,7 @@ class Lockdown : public SafeState
 
 	REACT(Reset) override
 	{
-		_pimpl->Reset();
+		pimpl()->Reset();
 		changeState<Locked>();
 	}
 };
@@ -275,11 +273,10 @@ If you desire to make your object a finite state machine, you will need the foll
     3. A declaration of a **Base State** class inheriting from eith StatePimplIF parameterized with your implementation class or StateIF and using the BASE_STATE macro. It also declares a react function for each event you defined earlier using the REACT macro plus the internal OnEntry and OnExit events.
 	4. Declaration of **your state machine** class itself inheriting from FiniteStateMachine parameterized with your base state.
 2. Create the cpp file and define the following:
-    1. Give a full definition to your implementation class if you have one. It should have a function for each output action of the state machine.
-    2. Define the deleter of your implementation class using the macro if you have one.
-    3. If you haven't forward declared your concrete classes in the header you need to do it here. This is required to change to a state not declared yet.
-    4. Then define all your states using the CONCRETE_STATE() macro and overriding all necessary virtual functions. If you have an implementation class, use the Initial state constructor macro in the state you desire your state machine to start in.
-    5. Define your top level state machine constructor, calling the parent's initialize() with an **new** instance of the initial state and a **new** instance of the implementation class. Deletion is handled by the State Machine
+    1. Give a full definition to your implementation class if you have one and derive from PimplBase. It should have a function for each output action of the state machine.
+    2. If you haven't forward declared your concrete classes in the header you need to do it here. This is required to change to a state not declared yet.
+    3. Then define all your states using the CONCRETE_STATE() macro and overriding all necessary virtual functions. If you have an implementation class, use the Initial state constructor macro in the state you desire your state machine to start in.
+    4. Define your top level state machine constructor, calling the parent's initialize() with an **new** instance of the initial state and a **new** instance of the implementation class. Deletion is handled by the State Machine
 
 To change the state of the machine, simply call changeState\<NewState\>() and after returning from the react function the changing sequence will occur, calling the relevent onExit and onEntry functions.
 

@@ -15,7 +15,6 @@ namespace pocket_fsm
 
 BASE_STATE(BASENAME) : Put at the top of your base state class header.
 REACT(EVENT) : Function signature for react functions. Event parameter is e.
-PIMPL_DELETER_DEF(PIMPL) : Define deleter function after the pimpl in source file.
 CONCRETE_STATE(NAME) : Put at the top of all concrete states in source file.
 INITIAL_STATE(NAME) : Put in the concrete state that will serve as initial state.
 
@@ -39,12 +38,6 @@ INITIAL_STATE(NAME) : Put in the concrete state that will serve as initial state
 #define REACT(EVENT) \
 	virtual void react(EVENT &e)
 
-// Because the pimpl is only forward declared, the deleter needs to be defined where the pimpl is also defined.
-#define PIMPL_DELETER_DEF(PIMPL) \
-template<> \
-void pocket_fsm::internal::PimplDeleter<PIMPL>::operator()(PIMPL *p) \
-{ delete p; }
-
 // Call this macro in a concrete state where NAME is the name of the class
 #define CONCRETE_STATE(NAME) \
 public: \
@@ -59,7 +52,7 @@ public: \
 		: NAME() \
 	{ \
 		pocket_fsm::internal::ASSERT(newPimpl, L"You need to pass a pimpl instance to the initial state!"); \
-		_pimpl = PimplSmartPtr(newPimpl); \
+		_pimpl.reset(dynamic_cast<pocket_fsm::PimplBase*>(newPimpl)); \
 	}
 
 // This namespace includes all things to be obfuscated from users of the header and only relate to the inner workings of pocket_fsm
@@ -73,14 +66,6 @@ namespace internal {
 			assert(expr && msg);
 		#endif
 	}
-
-
-	// This declaration requires to be specialized for every instance by using the PIMPL_DELETER_DEF macro
-	template<class Pimpl>
-	struct PimplDeleter
-	{
-		void operator()(Pimpl *);
-	};
 
 	// OnEntry and OnExit are internal events that cannot be raised outside of the State Machine
 	struct OnEntry { };
@@ -134,7 +119,15 @@ protected:
 	TransitionFunc _onTransition = nullptr;
 };
 
-// This variant of StateIF additionally holds a Pointer to IMPLementation.
+// A pimpl needs to derive from this class to expose a virtual destructor to the smart pointer
+class PimplBase
+{
+public:
+	virtual ~PimplBase() {};
+};
+
+// This variant of StateIF additionally holds a Pointer to IMPLementation,
+// which is an object containing data and functions carried over across states.
 // The pimpl object is handed off during transition and thus stays in
 // memory until the state machine itself is deleted.
 template<typename Pimpl>
@@ -163,8 +156,14 @@ public:
 
 protected:
 	// Beautifiers
-	using PimplSmartPtr = std::unique_ptr<Pimpl, internal::PimplDeleter<Pimpl>>;
+	using PimplSmartPtr = std::unique_ptr<PimplBase>;
 	using PimplType = Pimpl;
+
+	inline PimplType * pimpl() 
+	{
+		static_assert(std::is_base_of<PimplBase, Pimpl>::value, "The pimpl class needs to have PimplBase as a base");
+		return static_cast<PimplType*>(_pimpl.get()); 
+	}
 
 	// Pointer to implementation. This object will contain all internal logic and is unknown outside of the states.
 	PimplSmartPtr _pimpl = { nullptr };

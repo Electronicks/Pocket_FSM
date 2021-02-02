@@ -4,7 +4,7 @@
 
 // Step #5.1: Implement your pimpl. Hold all fields and declare all functions 
 // to perform whatever output your state machine is handling.
-class ButtonImpl {
+class ButtonImpl : public pocket_fsm::PimplBase {
 public:
 	ButtonImpl(const char *name)
 	    : _name(name)
@@ -35,9 +35,6 @@ public:
 	const char * _name;
 };
 
-// Step #5.2: Use the macro to define the specialized deleter for your pimpl
-PIMPL_DELETER_DEF(ButtonImpl)
-
 // Step #6: Forward declare all your concrete states first, then for each concrete state:
 //  - Declare and use CONCRETE_STATE macro to set up constructor with stringified name
 //  - The Initial State needs the macro of the same name for the initial construction.
@@ -53,12 +50,12 @@ class NoPress : public ButtonStateIF
 {
 	CONCRETE_STATE(NoPress)
 
-	// Constructor of the initial state also sets up the pimpl with its deleter
+	// Constructor of the initial state also sets up the pimpl
 	INITIAL_STATE(NoPress)
 
 	REACT(PressEvent) override
 	{
-		_pimpl->_downKey = e.keycode;
+		pimpl()->_downKey = e.keycode;
 		// You can use lambda for transition function
 		changeState<BtnPress>( [this] () {
 			printf("(%s) press true\n", _name); 
@@ -77,7 +74,7 @@ class BtnPress : public ButtonStateIF
 
 	REACT(OnEntry) override
 	{
-		_pimpl->DisplayPress();
+		pimpl()->DisplayPress();
 	}
 
 	REACT(ReleaseEvent) override
@@ -94,7 +91,7 @@ class BtnPress : public ButtonStateIF
 
 	REACT(OnExit) override
 	{
-		_pimpl->DisplayRelease();
+		pimpl()->DisplayRelease();
 	}
 
 	E_ButtonState getState() const override
@@ -107,7 +104,7 @@ class BtnPress : public ButtonStateIF
 // The REACT macro won't work here unfortunately
 void ButtonStateIF::react(GetKeyCode &e)
 {
-	e.keycode = _pimpl->_downKey;
+	e.keycode = pimpl()->_downKey;
 }
 
 void ButtonStateIF::react(ResetEvt &e)

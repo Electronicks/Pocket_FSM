@@ -4,7 +4,7 @@
 
 #include "CombinationSafe.h"
 
-struct SafeImpl
+struct SafeImpl : public pocket_fsm::PimplBase
 {
 	std::forward_list<int> _combination;
 	std::forward_list<int>::const_iterator _p;
@@ -39,25 +39,32 @@ struct SafeImpl
 	}
 };
 
-PIMPL_DELETER_DEF(SafeImpl);
+//PIMPL_DELETER_DEF(SafeImpl);
 
 class Open : public SafeState
 {
 	CONCRETE_STATE(Open)
 
-	INITIAL_STATE(Open)
+	//INITIAL_STATE(Open)
+
+public: 
+	Open(PimplType *newPimpl)
+	{ 
+		pocket_fsm::internal::ASSERT(newPimpl, L"You need to pass a pimpl instance to the initial state!"); 
+		_pimpl = PimplSmartPtr(newPimpl);
+	}
 
 	REACT(OnEntry) override
 	{
-		_pimpl->Open();
+		pimpl()->Open();
 	}
 
 	REACT(Configure) override
 	{
 		if (!e.combination.empty())
 		{
-			_pimpl->_combination = e.combination;
-			_pimpl->Reset();
+			pimpl()->_combination = e.combination;
+			pimpl()->Reset();
 			changeState<Locked>();
 		}
 	}
@@ -69,18 +76,18 @@ class Locked : public SafeState
 
 	REACT(OnEntry) override
 	{
-		_pimpl->Close();
+		pimpl()->Close();
 	}
 
 	REACT(Number) override
 	{
-		_pimpl->_error |= e.digit != *_pimpl->_p;
+		pimpl()->_error |= e.digit != *pimpl()->_p;
 
-		_pimpl->_p++;
+		pimpl()->_p++;
 
-		if (_pimpl->_p == _pimpl->_combination.cend())
+		if (pimpl()->_p == pimpl()->_combination.cend())
 		{
-			if (_pimpl->_error)
+			if (pimpl()->_error)
 				changeState<Lockdown>();
 			else
 				changeState<Open>();
@@ -89,7 +96,7 @@ class Locked : public SafeState
 
 	REACT(Reset) override
 	{
-		_pimpl->Clear();
+		pimpl()->Clear();
 	}
 };
 
@@ -99,18 +106,18 @@ class Lockdown : public SafeState
 
 	REACT(OnEntry)
 	{
-		_pimpl->Lockdown();
+		pimpl()->Lockdown();
 	}
 
 	REACT(Reset) override
 	{
-		_pimpl->Reset();
+		pimpl()->Reset();
 		changeState<Locked>();
 	}
 
 	REACT(OnExit)
 	{
-		_pimpl->Reset();
+		pimpl()->Reset();
 	}
 };
 
