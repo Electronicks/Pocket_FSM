@@ -14,9 +14,9 @@ namespace pocket_fsm
 -------------------------------------------------------------------------------------
 
 BASE_STATE(BASENAME) : Put at the top of your base state class header.
-REACT(EVENT) : Function signature for react functions. Event parameter is e.
 CONCRETE_STATE(NAME) : Put at the top of all concrete states in source file.
 INITIAL_STATE(NAME) : Put in the concrete state that will serve as initial state.
+REACT(EVENT) : Function signature for react functions. Event parameter is e.
 
 ************************************************************************************/
 
@@ -32,11 +32,6 @@ INITIAL_STATE(NAME) : Put in the concrete state that will serve as initial state
 			_nextState = new S(); \
 		} \
 	public:
-
-// Use this macro to reliaby declare your react functions with the proper signature.
-// The event parameter is simply named e ans is a non const reference.
-#define REACT(EVENT) \
-	virtual void react(EVENT &e)
 
 // Call this macro in a concrete state where NAME is the name of the class
 #define CONCRETE_STATE(NAME) \
@@ -54,6 +49,11 @@ public: \
 		pocket_fsm::internal::ASSERT(newPimpl, L"You need to pass a pimpl instance to the initial state!"); \
 		_pimpl.reset(dynamic_cast<pocket_fsm::PimplBase*>(newPimpl)); \
 	}
+
+// Use this macro to reliaby declare your react functions with the proper signature.
+// The event parameter is simply named e ans is a non const reference.
+#define REACT(EVENT) \
+	virtual void react(EVENT &e)
 
 // This namespace includes all things to be obfuscated from users of the header and only relate to the inner workings of pocket_fsm
 namespace internal {

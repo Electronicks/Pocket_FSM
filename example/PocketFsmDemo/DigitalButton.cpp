@@ -4,7 +4,8 @@
 
 // Step #5.1: Implement your pimpl. Hold all fields and declare all functions 
 // to perform whatever output your state machine is handling.
-class ButtonImpl : public pocket_fsm::PimplBase {
+class ButtonImpl : public pocket_fsm::PimplBase
+{
 public:
 	ButtonImpl(const char *name)
 	    : _name(name)
