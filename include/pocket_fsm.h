@@ -218,16 +218,14 @@ protected:
 	void initialize(S *initialState) 
 	{
 		internal::ASSERT(initialState, L"Need to pass an initial state to the initialize function.");
-		internal::ASSERT(!_currentState, L"You already initialized me!");
-
-		_currentState.reset(initialState);
-		OnEntry entry;
-		_currentState->react(entry);
+		lock();
+		setCurrentState(initialState);
 		while (_currentState->getNextState()) // Entry usually doesn't changeState, but it can.
 		{
 			// This cast is safe because of the static assert in this class
 			setCurrentState(static_cast<S*>(_currentState->getNextState()));
 		}
+		unlock();
 	}
 
 	// Const accessor to the current state
@@ -247,7 +245,10 @@ private:
 	{
 		OnExit exit;
 		OnEntry entry;
-		_currentState->react(exit);
+		if (_currentState)
+		{
+			_currentState->react(exit);
+		}
 		_currentState.reset(nextState); // old state destructor calls onTransition, hands off pimpl and gets deleted
 		_currentState->react(entry);
 	}

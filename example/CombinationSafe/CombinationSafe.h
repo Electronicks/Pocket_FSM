@@ -14,7 +14,7 @@ struct SafeImpl;
 
 // State machine inputs
 struct Configure { std::forward_list<int> combination; };
-struct Number { int digit;  };
+typedef int Number; // inputs can also be a basic type
 struct Reset {};
 
 // Concrete states

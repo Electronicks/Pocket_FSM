@@ -43,10 +43,10 @@ int main()
 		case '2':
 		{
 			std::cout << "Enter an integer: " << std::endl;
-			Number digit;
-			std::cin >> digit.digit;
+			int number;
+			std::cin >> number;
 			while (std::cin.get() != '\n');
-			lock.sendEvent(digit);
+			lock.sendEvent(number);
 		}	break;
 		case '3':
 		{

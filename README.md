@@ -41,33 +41,33 @@ Pocket FSM makes use of C++11 features such as function objects and smart pointe
 ## What's in the header
 
 All the content of the header is in the pocket_fsm namespace exept the macros which are always global. You will find the following in the Pocket FSM header:
-* A macro ASSERT_X_PLAT in order to perform asserts in debug configuration. This will inform the developer of any misuse of the framework and it has zero impact in release.
-* A macro REACT that defines a uniform signature for all react functions
-* A class StateIF to be templated with the forward declaration of your pimpl. It is pure virtual so you need to create your own base state class. There's also a specializer for a version without pimpl.
-* A class FiniteStateMachine, templated with your base state class. The state machine you will be using will be a child of this class.
-* A set of macros to use in your custom state classes. The macros make use of the stringify feature and help with creating consistent signatures and constructors for your classes. If a macro hinders what you are trying to do, feel free to write its expansion. Take note that all *_STATE() macros make the class member visibility public thereafter.
+* The header starts with a few helpful macros for the usage of the framework. The macros help both as a labelling of the classes and sets up functions and stringification of the classes.
+* An namespace named internal contains macro and structures used for the workings of the framework.
+* Two classes StateIF and StatePimplIF can be used as a parent for your base state class, the first with no implementation class and the second is parameterized with it.
+* A simple virtual class PimplBase to be the parent of the implementation class.
+* A class FiniteStateMachine, parameterized with the base state class. This will be the parent of your state machine variant.
 
 ## How do I use Pocket FSM?
 
-Let's show the step by the use of a simple state machine example: a combination safe. The safe requires you to configure a new combination every time you lock it, and entering a wrong combination puts the safe in lockdown. Once it lockdown, you need a competent authority to reset the safe before trying the lock again. We can start by laying down the basics of our state machine in our header CombinationSafe.h
+Let's show the steps through the use of a simple state machine example: a combination safe. The safe requires you to configure a new combination every time you lock it, and entering a wrong combination puts the safe in lockdown. Once in lockdown, you need a competent authority to reset the safe before trying the lock again. We can start by laying down the basics of our state machine in our header CombinationSafe.h
 
 ```c++
 // File: CombinationSafe.h
 // Author: Electronicks
-// Date: January 18th 2021
+// Date: Today
 
-#pragma once // Header sentinel
+#pragma once // Mandatory header sentinel
 
 // Include the framework to use it.
 #include "pocket_fsm.h"
 ... // Include some more headers as you need them
 
-// I will need a pimpl to hold the combination and possibly more
+// I will need a pimpl to hold the combination and possibly more.
 struct SafeImpl;
 
 // State machine inputs
 struct Configure { std::forward_list<int> combination; }; // Our combination is a sequence of integer numbers
-struct Number { int digit;  }; // Entering a number is just passing a digit
+typedef int Number; // inputs can also be a basic type
 struct Reset {}; // Reset requires no parameter passing
 
 // Concrete states
@@ -76,7 +76,7 @@ class Locked;		// The safe is locked and processing digits from the user
 class Lockdown;		// The safe is in lockdown and requires a reset to use again.
 ```
 
-At this point we have none of the links between the different pieces, but that's okay because we're in the header, we just do declarations here. Declaring the concrete states is optional in the header, it could be done in the source file instead, but it may be relevant to the user of the state machine since the state names are stringified, and it may be pertinent for that person to know what those values could be. At this point we haven't even used the framework! but this is about to change. Let's declare the base state for our safe, which will be cleverly called SafeState.
+At this point we have none of the links between the different pieces, but that's okay because we're in the header, we just do declarations here. Declaring the concrete states is optional in the header, it could be done in the source file instead, but it may be relevant to the user of the state machine since the state names are stringified, and it may be pertinent for that person to know what those values could be. Of course the implementation class is only forward declared in the header here. At this point we haven't even used the framework! but this is about to change. Let's declare the base state for our safe, which will be cleverly called SafeState.
 
 ```c++
 class SafeState : public pocket_fsm::StatePimplIF<SafeImpl>
@@ -87,14 +87,14 @@ class SafeState : public pocket_fsm::StatePimplIF<SafeImpl>
 	REACT(OnEntry) override {}
 	REACT(OnExit) override {}
 
-	// Default reactions => are unhandled
+	// Default reactions / ignored
 	REACT(Configure) {}
 	REACT(Number) {}
 	REACT(Reset) {}
 };
 ```
 
-Oh no, macros! Don't be spooked by those macros: they serve as both a consistent way to declare your states and a way to label your classes with their explicit purpose. The BASE_STATE macro is very important as it declares an  templated function key to the machine, which is the changeState<>() function. Visibility is set to public after the macro so you don't have to think about it. The REACT macros are not really necessary, but simply provides a consistent signature to your react functions. The base class has two internal react functions that require overriding, OnEntry and OnExit events. You then add a react functions for your own inputs you defined earlier. All the react functions can be left pure virtual, defined on the spot, defined empty like in our case, or even labelled final. It's all up to your needs. Take note it's important for the base state to not hold any data members: if you need data to be passed from one state to the next, the pimpl will hold those fields.
+Oh no, macros! Don't be spooked by those macros: they serve as both a consistent way to declare your states and a way to label your classes with their explicit purpose. The BASE_STATE macro is very important as it declares a key function, the changeState<>() function. Visibility is set to public after the macro so you don't have to worry about it. The REACT macros are not really necessary, but simply provides a consistent signature to your react functions. The base class has two internal react functions that require overriding, OnEntry and OnExit events. You then add a react functions for your own inputs you defined earlier. All the react functions can be left pure virtual, defined on the spot, defined empty like in our case, or even labelled final. It's all up to your needs. Take note it's important for the base state to not hold any data members: if you need data to be passed from one state to the next, the pimpl will hold those fields.
 
 This looks like a simple enough class. Now we need the machine itself that will be jugling the different states.
 
@@ -108,14 +108,14 @@ public:
 // End of CombinationLock.h
 ```
 
-Well, that is deceptively simple. Is that really it? Well, there are optional lock() and unlock() function that can be overriden to implement a mutex if you plan on sending events from different threads. Also, the machine constructor will be constructing the pimpl, so if it needs any parameters at construction it should be passed here, but we may not know what those are yet. Otherwise, yeah that's it! Of course you can add to it any method and field might seem pertinent, but remember that iteraction with the pimpl should only pass through event reactions.
+Well, that is deceptively simple. Is that really it? Well, there are optional lock() and unlock() function that can be overriden to implement a mutex if you plan on sending events from different threads. Also, the machine constructor will be constructing the pimpl, so if it needs any parameters at construction it should be passed here, but we may not know what those are yet. If the safe combination could not be reconfigured, the combination would be passsed along here, for example. Otherwise, yeah that's it! Of course you can add to it any method and field might seem pertinent, but remember that iteraction with the pimpl should only pass through event reactions.
 
-So that's our header file. At this point it can be shared with our coworker Jimmy that may desire to start coding its usage since they have the full interface to the state machine. For us, we need to start coding the implementation itself. So let's start writing our complementary source file. First step here is to define our pimpl that was forward declared in the header. Obviously the implementation can be done in different ways, so the way I choose here is primarily for the purpose of demonstration more than anything else.
+So that's our header file. At this point it can be shared with our coworker Jimmy that may desire to start coding its usage since he has the full interface to the state machine. For us, we need to start coding the implementation itself. So let's start writing our complementary source file. First step here is to define our pimpl that was forward declared in the header. Obviously the implementation can be done in different ways, so the way I choose here is primarily for the purpose of demonstration.
 
 ```c++
 // File: CombinationSafe.cpp
 // Author: Electronicks
-// Date: January 18th 2021
+// Date: Today
 
 #include "CombinationSafe.h"
 
@@ -129,11 +129,9 @@ struct SafeImpl : public pocket_fsm::PimplBase
 
 	... // Add Helper functions as you need them.
 };
-
-PIMPL_DELETER_DEF(SafeImpl);
 ```
 
-In my implementation I desire to hold the combination and a pointer that will be travelling down as numbers are being entered. I will also need an error flag to indicate if a number was entered wrong at any time since I don't plan on being able to travel backwards, and I don't change state until I have received as many numbers as the combination holds. Typically this should be a different locked state, but I desire to hide this from the user of the CombinationSafe. I also need to define a deleter for the pimpl because of the way the memory management is handled with an opaque pointer. Now onto the fun part defining my actual states and reactions. If I didn't forward declare my concrete classes in the header I would do it here since I need it for changing state.
+The implementation class needs to derive from the PimplBase class of the framework: this sets up a virtual deleter called by a smart pointer. Then, I desire to hold the combination and a pointer that will be travelling down as numbers are being entered. I will also need an error flag to indicate if a number was entered wrong at any time since I don't plan on being able to travel backwards, and I don't change state until I have received as many numbers as the combination holds. Typically this should be a different locked state, but I desire to hide this from the user of the CombinationSafe. Now onto the fun part defining my actual states and reactions. If I didn't forward declare my concrete classes in the header I would do it here since I need it for changing state.
 
 ```c++
 class Open : public SafeState
@@ -155,7 +153,7 @@ class Open : public SafeState
 };
 ```
 
-This reads rather easily doesn't it? Open is a concrete state, what more? the initial state, and it reacts to a configuration by adopting the configuration and changing to a locked state! Let's talk a little more about the macros: both CONCRETE_STATE and INITIAL_STATE define constructors, the first with no arguments and the second with a pimpl pointer as parameter. Once again visibility is handled by the macros so you don't have to bother with it. The REACT macro shows up again, and it is still optional but handy for a consistent signature. Just remember the event parameter it called e and is non-const reference. Changing state is as easy as invoking the templated function. This state is not concerned with other kind of events, so the default reaction will suffice. On to the other states.
+This reads rather easily doesn't it? Open is a concrete state of the safe. What more? It is the initial state. And it reacts to a configuration event by adopting a valid combination and changing to a locked state! Let's talk a little more about the macros: both CONCRETE_STATE and INITIAL_STATE define constructors, the first with no arguments and the second with a pimpl pointer as parameter. Once again visibility is handled by the macros so you don't have to bother with it. Just remember the event parameter is called e and is non-const reference. The class has access to the field _pimpl, but its type is PimplBase smart pointer: the inline method pimpl() casts the pointer to its proper type for you. Changing state is as easy as invoking the templated function. Also, this state is not concerned with other kind of events, so the default reaction will suffice. On to the other states.
 
 ```c++
 class Locked : public SafeState
@@ -204,12 +202,12 @@ CombinationSafe::CombinationSafe()
 }
 ```
 
-The constructor creates the pimpl instance and the initial state. The function initialize is part of the base class and is required to use the state machine. The initial state will react to an entry event here to honor the RAII pattern. As mentioned previously, any parameters the pimpl needs for construction can be passed along right here. So now that the state machine is coded, how do you use it? Let's see what our coworker Jimmy was working on since we gave him our header.
+The constructor creates the pimpl instance and the initial state. The function initialize is part of the base class and is required to start using the state machine. The initial state will react to an entry event here to honor the RAII pattern. As mentioned previously, any parameters the pimpl needs for construction can be passed along right here. So now that the state machine is coded, how do you use it? Let's see what our coworker Jimmy was working on since we gave him our header.
 
 ```c++
 // File: main.cpp
 // Author: Jimmy
-// Date: January 18th 2021
+// Date: Today
 
 #include "CombinationSafe.h" // Thanks for the header Electronicks
 
@@ -241,10 +239,10 @@ int main()
 		} break;
 		case '2':
 		{
-			Number digit;
+			int number;
 			std::cout << "Enter an integer: " << std::endl;
 			... // Read and parse
-			safe.sendEvent(digit);
+			safe.sendEvent(number);
 		}	break;
 		case '3':
 		{
@@ -268,18 +266,18 @@ Finally here's a bullet point resume of what you need to do.
 If you desire to make your object a finite state machine, you will need the following.
 0. It is highly recommended to start with a state machine diagram, listing the number and names of states, what stimuli the system responds to and what actions the system takes in each state, on transitions, on entry and on exit.
 1. Start by creating a header file, importing the Pocket FSM header. The header file must contain the following:
-    1. The forward declaration of the **Implementation Class** if you need one and optionally all the concrete states. The states have their name stringified, so the header is a good reference of what those strings can be.
-    2. A definition for all the input **Events** as structures. They may contain fields.
-    3. A declaration of a **Base State** class inheriting from eith StatePimplIF parameterized with your implementation class or StateIF and using the BASE_STATE macro. It also declares a react function for each event you defined earlier using the REACT macro plus the internal OnEntry and OnExit events.
+    1. (Optional) The forward declaration of the **Implementation Class** if you use one and all the concrete states. The states have their name stringified, so the header is a good reference of what those strings can be.
+    2. A definition for all the input **Events** as any type. They may contain fields that sevre as inout parameters.
+    3. A declaration of a **Base State** class inheriting from either StatePimplIF parameterized with your implementation class or StateIF and using the BASE_STATE macro. It also declares a react function for each event you defined earlier using the REACT macro plus the internal OnEntry and OnExit events.
 	4. Declaration of **your state machine** class itself inheriting from FiniteStateMachine parameterized with your base state.
 2. Create the cpp file and define the following:
-    1. Give a full definition to your implementation class if you have one and derive from PimplBase. It should have a function for each output action of the state machine.
+    1. Give a full definition to your implementation class if you have one and derive from PimplBase. It should contains all data fields and methods to perform the state machine outputs.
     2. If you haven't forward declared your concrete classes in the header you need to do it here. This is required to change to a state not declared yet.
-    3. Then define all your states using the CONCRETE_STATE() macro and overriding all necessary virtual functions. If you have an implementation class, use the Initial state constructor macro in the state you desire your state machine to start in.
-    4. Define your top level state machine constructor, calling the parent's initialize() with an **new** instance of the initial state and a **new** instance of the implementation class. Deletion is handled by the State Machine
+    3. Then define all your states using the CONCRETE_STATE() macro and overriding all necessary virtual functions. If you have an implementation class, use need to use the INITIAL_STATE  macro in the state you desire your state machine to start in.
+    4. Define your top level state machine constructor, calling the parent's initialize() with an **new** instance of the initial state and a **new** instance of the implementation class. The State Machine takes ownership of those pointers.
 
-To change the state of the machine, simply call changeState\<NewState\>() and after returning from the react function the changing sequence will occur, calling the relevent onExit and onEntry functions.
+To change the state of the machine, simply call changeState\<NewState\>() and after returning from the react function the changing sequence will occur, calling the relevent OnExit and OnEntry functions.
 
-You can also have a function to be run during the transition, after onExit but before onEntry.
+You can also have a function to be run during the transition, after OnExit but before OnEntry.
 
 It's easy to use lambdas or bind non-static methods to the transition thanks to the use of standard function objects.

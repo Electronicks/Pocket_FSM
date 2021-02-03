@@ -39,20 +39,11 @@ struct SafeImpl : public pocket_fsm::PimplBase
 	}
 };
 
-//PIMPL_DELETER_DEF(SafeImpl);
-
 class Open : public SafeState
 {
 	CONCRETE_STATE(Open)
 
-	//INITIAL_STATE(Open)
-
-public: 
-	Open(PimplType *newPimpl)
-	{ 
-		pocket_fsm::internal::ASSERT(newPimpl, L"You need to pass a pimpl instance to the initial state!"); 
-		_pimpl = PimplSmartPtr(newPimpl);
-	}
+	INITIAL_STATE(Open)
 
 	REACT(OnEntry) override
 	{
@@ -81,7 +72,7 @@ class Locked : public SafeState
 
 	REACT(Number) override
 	{
-		pimpl()->_error |= e.digit != *pimpl()->_p;
+		pimpl()->_error |= e != *pimpl()->_p;
 
 		pimpl()->_p++;
 
