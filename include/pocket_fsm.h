@@ -28,7 +28,7 @@ REACT(EVENT) : Function signature for react functions. Event parameter is e.
 
 
 *************************************************************************************
-						C L A S S   D E F I N I T I O N S
+                        C L A S S   D E F I N I T I O N S
 -------------------------------------------------------------------------------------
 
 PimplBase : The base class for the optional implementation class of the state machine
@@ -39,7 +39,7 @@ FiniteStateMachine<Base> : The core fsm processing of states of the parameterize
 
 
 *************************************************************************************
-						         U S A G E
+                                  U S A G E
 -------------------------------------------------------------------------------------
 0. It is highly recommended to start with a state machine diagram, listing the number
 and names of states, what stimuli the system responds to and what actions the system
@@ -176,7 +176,7 @@ public:
 	using OnExit = pocket_fsm::internal::OnExit;
 
 	/*!
-	 *  Constructor. All states should be created clean : no copying allowed!W
+	 *  Constructor. All states should be created clean : no copying allowed!
 	 */
 	StateIF() = default;
 	StateIF(StateIF &s) = delete;

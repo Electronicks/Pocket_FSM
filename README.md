@@ -28,7 +28,7 @@ Pocket FSM provides an easy and intuitive way to code a complex state machine fr
 Here's a  depiction of the separation done of the interface and the implementation.
 ![Decoupling Plan](https://github.com/Electronicks/Pocket_FSM/tree/master/doc/Decoupling_Plan.jpg "Decoupling Diagram")
 
-On the left you can see the user of the state machine dealing with various structures, containing various fields if any, encompassing all of the state machine inputs. Those are sent to the state machine via the singular sendEvent function. Internally, the call is routed to the proper handler thanks to polymorphism and overloading. This layer can is where things move, objects are created and deleted and moved about as the state of the machine changes after each call. Finally, the rightmost layer contains the data and logic for the output of the state machine, such as controlling some hardware. The objects on either end do not change, but the calls in between, the processing of the event by the current state does change. But this change is 100% opaque to either ends.
+On the left you can see the user of the state machine dealing with various structures, containing various fields if any, encompassing all of the state machine inputs. Those are sent to the state machine via the singular sendEvent function. Internally, the call is routed to the proper handler thanks to polymorphism and overloading. The middle layer is where things move, objects are created and deleted and move about as the state of the machine changes after each call. Finally, the rightmost layer contains the data and logic for the output of the state machine, such as controlling some hardware in this example. The objects on either end do not change, but the calls in between, the processing of the event by the current state does change ; but these changes are 100% opaque to either ends.
 
 ## Why not use any of the other FSM frameworks
 
@@ -76,7 +76,9 @@ class Locked;		// The safe is locked and processing digits from the user
 class Lockdown;		// The safe is in lockdown and requires a reset to use again.
 ```
 
-At this point we have none of the links between the different pieces, but that's okay because we're in the header, we just do declarations here. Declaring the concrete states is optional in the header, it could be done in the source file instead, but it may be relevant to the user of the state machine since the state names are stringified, and it may be pertinent for that person to know what those values could be. Of course the implementation class is only forward declared in the header here. At this point we haven't even used the framework! but this is about to change. Let's declare the base state for our safe, which will be cleverly called SafeState.
+At this point we have none of the links between the different pieces, but that's okay because we're in the header, we just do declarations here. Declaring the concrete states is optional in the header, it could be done in the source file instead, but it may be relevant to the user of the state machine since the state names are stringified, and it may be pertinent for that person to know what those values could be. Of course the implementation class is only forward declared in the header here.
+
+At this point we haven't even used the framework! but this is about to change. Let's declare the base state for our safe, which will be cleverly called SafeState.
 
 ```c++
 class SafeState : public pocket_fsm::StatePimplIF<SafeImpl>
@@ -193,7 +195,9 @@ class Lockdown : public SafeState
 };
 ```
 
-And here's our main processing. The Reset function was added as I was performing the same operation multiple times. Processing the number could arguably be a function as well, to move the responsibility in the pimpl. We can see that the safe stays in the locked state until enough numbers are entered. Reset enables the user to start over or clear the lockdown. It feels like we should be done, but let's not forget we need the constructor of our CombinationSafe to kick things off!
+And here's our main processing. The Reset function was added as I was performing the same operation multiple times. Processing the number could arguably be a function as well, to move the responsibility in the pimpl. We can see that the safe stays in the locked state until enough numbers are entered. Reset enables the user to start over or clear the lockdown.
+
+It feels like we should be done, but let's not forget we need the constructor of our CombinationSafe to kick things off!
 
 ``` c++
 CombinationSafe::CombinationSafe()
@@ -202,7 +206,9 @@ CombinationSafe::CombinationSafe()
 }
 ```
 
-The constructor creates the pimpl instance and the initial state. The function initialize is part of the base class and is required to start using the state machine. The initial state will react to an entry event here to honor the RAII pattern. As mentioned previously, any parameters the pimpl needs for construction can be passed along right here. So now that the state machine is coded, how do you use it? Let's see what our coworker Jimmy was working on since we gave him our header.
+The constructor creates the pimpl instance and the initial state. The function initialize is part of the base class and is required to start using the state machine. The initial state will react to an entry event here to honor the RAII pattern. As mentioned previously, any parameters the pimpl needs for construction can be passed along right here.
+
+So now that the state machine is coded, how do you use it? Let's see what our coworker Jimmy was working on since we gave him our header.
 
 ```c++
 // File: main.cpp
@@ -261,9 +267,12 @@ Using the safe seems simple enough. After creation you can just start sending ev
 
 You can find a runnable version of this example, as well as other examples showcasing other features of the framework in the example VS solution provided.
 
+## Checklist usage
+
 Finally here's a bullet point resume of what you need to do.
 
 If you desire to make your object a finite state machine, you will need the following.
+
 0. It is highly recommended to start with a state machine diagram, listing the number and names of states, what stimuli the system responds to and what actions the system takes in each state, on transitions, on entry and on exit.
 1. Start by creating a header file, importing the Pocket FSM header. The header file must contain the following:
     1. (Optional) The forward declaration of the **Implementation Class** if you use one and all the concrete states. The states have their name stringified, so the header is a good reference of what those strings can be.
