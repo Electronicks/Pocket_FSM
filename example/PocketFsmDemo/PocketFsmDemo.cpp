@@ -1,5 +1,6 @@
 #include "DigitalButton.h"
 #include <string>
+#include <vector>
 
 constexpr uint16_t VK_SPACE = 32;
 
@@ -12,7 +13,15 @@ using pocket_fsm::internal::ASSERT;
 
 int main(void)
 {
-	DigitalButton buttonA("Button #1");
+	std::vector<DigitalButton> buttons;
+	buttons.reserve(5);
+	for (char c = '1'; c <= '5'; ++c)
+	{
+		std::string str("Button #");
+		str = str.append({ c });
+		buttons.push_back(std::move(DigitalButton(str.c_str()))); // test copy and move ctors
+	}
+	DigitalButton &buttonA = buttons[0];
 	ASSERT(buttonA.getState() == E_ButtonState::NoPress, L"Button initialized to the wrong state");
 
 	buttonA.sendEvent<PressEvent>(press);

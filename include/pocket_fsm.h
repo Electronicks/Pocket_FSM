@@ -326,8 +326,11 @@ public:
 	 */
 	virtual ~FiniteStateMachine() 
 	{
-		OnExit exit;
-		_currentState->react(exit); // Cleanup
+        if(_currentState)
+		{
+            OnExit exit;
+		    _currentState->react(exit); // Cleanup
+        }
 	}
 
 	/*!
@@ -423,10 +426,12 @@ private:
 		_currentState->react(entry);
 	}
 
-	/*!
-	 *  The current state of the state machine.
-	 */
-	std::unique_ptr<BASE> _currentState = nullptr;
-};
+		/*!
+		 *  The current state of the state machine.
+		 *  shared instead of unique to enable copy ctor 
+		 *  but field is kept private rather than protected
+		 */
+		std::shared_ptr<BASE> _currentState = nullptr;
+	};
 
 } // End of namespace

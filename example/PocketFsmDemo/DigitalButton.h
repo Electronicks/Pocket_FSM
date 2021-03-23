@@ -58,6 +58,7 @@ class DigitalButton : public pocket_fsm::FiniteStateMachine<ButtonStateIF>
 public:
 	// Add parameters required to instantiate your pimpl
 	DigitalButton(const char *name);
+	DigitalButton(const DigitalButton &copy) : FiniteStateMachine(copy){};
 
 	// Getter for custom state identifier. This is arguably better than the stringified name of the class.
 	inline E_ButtonState getState()

@@ -14,7 +14,7 @@ public:
 	~ButtonImpl()
 	{
 		using namespace std;
-		cout << "Button is being destroyed: " << _name << endl;
+		cout << "Button is being destroyed: " << _name.c_str() << endl;
 		_downKey = UINT16_MAX;
 	}
 
@@ -33,7 +33,7 @@ public:
 
 	uint16_t _downKey = UINT16_MAX;
 
-	const char * _name;
+	const std::string _name;
 };
 
 // Step #6: Forward declare all your concrete states first, then for each concrete state:
