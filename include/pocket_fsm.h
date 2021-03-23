@@ -337,9 +337,11 @@ public:
 	 *      @tparam E The type of the event the current state needs to react to.
 	 *
 	 *      @param [in,out] evt The user defined object the state machine will handle
+	 *
+	 *      @return the input parameter reference
 	 */
 	template<typename E>
-	void sendEvent(E &evt)
+	E &sendEvent(E &evt)
 	{
 		static_assert(!std::is_same<E, OnEntry>::value && !std::is_same<E, OnExit>::value, "Cannot send an internal event");
 		internal::ASSERT(_currentState.get(), L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
@@ -351,6 +353,7 @@ public:
 			setCurrentState(static_cast<BASE*>(_currentState->getNextState()));
 		}
 		unlock();
+		return evt;
 	}
 
 	/*!

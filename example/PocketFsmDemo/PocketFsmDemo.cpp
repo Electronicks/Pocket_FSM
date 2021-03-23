@@ -24,9 +24,9 @@ int main(void)
 	buttonA.sendEvent(gkc);
 	ASSERT(gkc.keycode == VK_SPACE, L"Button did not capture the right keycode");
 
-	buttonA.sendEvent(release);
+	// sendEvent return value is the processed parameter in order to read result inline
+	ASSERT(buttonA.sendEvent(release).result, L"Event returned a false result");
 	ASSERT(buttonA.getState() == E_ButtonState::NoPress, L"Button did not transition state");
-	ASSERT(release.result, L"Event returned a false result");
 	release.result = false;
 
 	buttonA.sendEvent(release);
