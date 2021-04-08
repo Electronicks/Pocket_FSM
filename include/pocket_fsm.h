@@ -18,7 +18,7 @@ namespace pocket_fsm
 {
 
 /************************************************************************************
-	                    M A C R O   D E F I N I T I O N S
+						M A C R O   D E F I N I T I O N S
 -------------------------------------------------------------------------------------
 
 BASE_STATE(BASENAME) : Put at the top of your base state class header.
@@ -28,47 +28,47 @@ REACT(EVENT) : Function signature for react functions. Event parameter is e.
 
 
 *************************************************************************************
-                        C L A S S   D E F I N I T I O N S
+						C L A S S   D E F I N I T I O N S
 -------------------------------------------------------------------------------------
 
 PimplBase : The base class for the optional implementation class of the state machine
 StateIF : The core for a state machine state that has no pimpl
 StatePimplIF<Pimpl> : A state IF that also has a parameterized pimpl
-FiniteStateMachine<Base> : The core fsm processing of states of the parameterized type 
+FiniteStateMachine<Base> : The core fsm processing of states of the parameterized type
 
 
 
 *************************************************************************************
-                                  U S A G E
+								  U S A G E
 -------------------------------------------------------------------------------------
 0. It is highly recommended to start with a state machine diagram, listing the number
 and names of states, what stimuli the system responds to and what actions the system
 takes in each state, on transitions, on entry and on exit.
 
 1. Start by creating a header file, importing the Pocket FSM header.
-	1. (Optional) The forward declaration of the Implementation Class if you use 
-	    one and all the concrete states.
+	1. (Optional) The forward declaration of the Implementation Class if you use
+		one and all the concrete states.
 	2. A definition for all the input Events as any type. They may contain fields that
-	    sevre as inout parameters.
-	3. A declaration of a Base State class inheriting from either StatePimplIF 
-	    parameterized with your implementation class or StateIF and using the 
+		sevre as inout parameters.
+	3. A declaration of a Base State class inheriting from either StatePimplIF
+		parameterized with your implementation class or StateIF and using the
 		BASE_STATE macro. It also declares a react function for each event you defined
 		earlier using the REACT macro plus the internal OnEntry and OnExit events.
-	4. Declaration of your state machine class itself inheriting from 
-	    FiniteStateMachine parameterized with your base state.
+	4. Declaration of your state machine class itself inheriting from
+		FiniteStateMachine parameterized with your base state.
 
 2. Create the cpp file and define the following:
-	1. Give a full definition to your implementation class if you have one and derive 
-	    from PimplBase. It should contains all data fields and methods to perform the 
+	1. Give a full definition to your implementation class if you have one and derive
+		from PimplBase. It should contains all data fields and methods to perform the
 		state machine outputs.
 	2. If you haven't forward declared your concrete classes in the header you need to
-	    do it here. This is required to change to a state not declared yet.
+		do it here. This is required to change to a state not declared yet.
 	3. Then define all your states using the CONCRETE_STATE() macro and overriding all
-	    necessary virtual functions. If you have an implementation class, use need to 
+		necessary virtual functions. If you have an implementation class, use need to
 		use the INITIAL_STATE  macro in the state you desire to start in.
-	4. Define your top level state machine constructor, calling the parent's 
-	    initialize() with an **new** instance of the initial state and a new 
-		instance of the implementation class. The State Machine takes ownership of 
+	4. Define your top level state machine constructor, calling the parent's
+		initialize() with an **new** instance of the initial state and a new
+		instance of the implementation class. The State Machine takes ownership of
 		those pointers.
 
 
@@ -91,22 +91,22 @@ takes in each state, on transitions, on entry and on exit.
 		} \
 	public:
 
-/*!
- *  Call this macro in a concrete state.
- *  
- *  @param NAME This concrete class
- */
+ /*!
+  *  Call this macro in a concrete state.
+  *
+  *  @param NAME This concrete class
+  */
 #define CONCRETE_STATE(NAME) \
 public: \
 	NAME() { _name=#NAME; }
 
-/*!
- *  Use this macro to define the constructor of your initial state. 
- *  It is given the new pimpl instance and it takes ownership of it.
- *  This macro is technically only necessary if you use a pimpl, but it's good labelling.
- *
- *  @param NAME This concrete class
- */
+  /*!
+   *  Use this macro to define the constructor of your initial state.
+   *  It is given the new pimpl instance and it takes ownership of it.
+   *  This macro is technically only necessary if you use a pimpl, but it's good labelling.
+   *
+   *  @param NAME This concrete class
+   */
 #define INITIAL_STATE(NAME) \
 public: \
 	NAME(PimplType *newPimpl) \
@@ -116,40 +116,40 @@ public: \
 		_pimpl.reset(dynamic_cast<pocket_fsm::PimplBase*>(newPimpl)); \
 	}
 
-/*!
- *  Use this macro to reliaby declare your react functions with the proper signature.
- *  The event parameter is simply named e ans is a non const reference.
- *  Call this macro in a concrete state.
- *
- *  @param EVENT The type of the parameter of the react function
- */
+   /*!
+	*  Use this macro to reliaby declare your react functions with the proper signature.
+	*  The event parameter is simply named e ans is a non const reference.
+	*  Call this macro in a concrete state.
+	*
+	*  @param EVENT The type of the parameter of the react function
+	*/
 #define REACT(EVENT) \
 	virtual void react(EVENT &e)
 
-/*!
- *  This namespace includes all things to be obfuscated from users of the header and only relate to the inner workings of pocket_fsm
- */
-namespace internal 
+	/*!
+	 *  This namespace includes all things to be obfuscated from users of the header and only relate to the inner workings of pocket_fsm
+	 */
+namespace internal
 {
-	/*!
-	 *  Cross platform assert used for DEBUG runtime check
-	 *
-	 *      @param [in] expr An expression that has to be true.
-	 *      @param [in] msg  The message to show when expr is false
-	 */
-	constexpr void ASSERT(bool expr, const wchar_t *msg) { 
-		#if defined(WIN32)
-			_ASSERT_EXPR(expr, msg); 
-		#elif defined (UNIX)
-			assert(expr && msg);
-		#endif
-	}
+/*!
+ *  Cross platform assert used for DEBUG runtime check
+ *
+ *      @param [in] expr An expression that has to be true.
+ *      @param [in] msg  The message to show when expr is false
+ */
+constexpr void ASSERT(bool expr, const wchar_t *msg) {
+#if defined(WIN32)
+	_ASSERT_EXPR(expr, msg);
+#elif defined (UNIX)
+	assert(expr && msg);
+#endif
+}
 
-	/*!
-	 *  OnEntry and OnExit are internal events that are only raised by the State Machine itself.
-	 */
-	struct OnEntry { };
-	struct OnExit { };
+/*!
+ *  OnEntry and OnExit are internal events that are only raised by the State Machine itself.
+ */
+struct OnEntry { };
+struct OnExit { };
 }
 
 /*!
@@ -162,8 +162,8 @@ public:
 };
 
 /*!
- * The State interface is the base class for any state object. It holds transition logic and 
- *  pure virtual reaction function to internal events. 
+ * The State interface is the base class for any state object. It holds transition logic and
+ *  pure virtual reaction function to internal events.
  *  Derive your base class from this if you do not need a pimpl.
  */
 class StateIF
@@ -191,9 +191,9 @@ public:
 			_onTransition();
 		}
 	}
-	
+
 	/*!
-	 *  These functions are run once when the state becomes active 
+	 *  These functions are run once when the state becomes active
 	 *  and the other once as well when the state becomes inactive
 	 *
 	 *      @param [in,out] e The internal events are empty
@@ -236,9 +236,9 @@ protected:
 };
 
 /*!
- *  This variant of StateIF additionally holds a Pointer to IMPLementation, 
- *  which is an object containing data and functions carried over across states. 
- *  The pimpl object is handed off during transition and thus stays in memory 
+ *  This variant of StateIF additionally holds a Pointer to IMPLementation,
+ *  which is an object containing data and functions carried over across states.
+ *  The pimpl object is handed off during transition and thus stays in memory
  *  until the state machine itself is deleted.
  *  The pimpl can be accessed under the proper type via the getter pimpl()
  *
@@ -283,12 +283,12 @@ protected:
 	/*!
 	 *  Access the Implementation Class as it's proper type
 	 *
-	 *      @return 
+	 *      @return
 	 */
-	inline PimplType * pimpl() 
+	inline PimplType * pimpl()
 	{
 		static_assert(std::is_base_of<PimplBase, Pimpl>::value, "The pimpl class needs to have pocket_fsm::PimplBase as a base");
-		return static_cast<PimplType*>(_pimpl.get()); 
+		return static_cast<PimplType*>(_pimpl.get());
 	}
 
 	/*!
@@ -324,13 +324,13 @@ public:
 	/*!
 	 *  Destructor. Call exit event before deletion.
 	 */
-	virtual ~FiniteStateMachine() 
+	virtual ~FiniteStateMachine()
 	{
-        if(_currentState)
+		if (_currentState)
 		{
-            OnExit exit;
-		    _currentState->react(exit); // Cleanup
-        }
+			OnExit exit;
+			_currentState->react(exit); // Cleanup
+		}
 	}
 
 	/*!
@@ -375,9 +375,9 @@ protected:
 	 *  Descendants call this in their constructor typically to set the initial state.
 	 *  The state machine takes ownership of the pointer.
 	 *
-	 *      @param [in,out] initialState 
+	 *      @param [in,out] initialState
 	 */
-	void initialize(BASE *newInitialState) 
+	void initialize(BASE *newInitialState)
 	{
 		internal::ASSERT(newInitialState, L"Need to pass an initial state to the initialize function.");
 		lock();
@@ -401,7 +401,7 @@ protected:
 	}
 
 	/*!
-	 * Override these functions using your favorite lock mechanism 
+	 * Override these functions using your favorite lock mechanism
 	 *  to secure State Machine usage across threads
 	 */
 	virtual void lock() {};
@@ -426,12 +426,12 @@ private:
 		_currentState->react(entry);
 	}
 
-		/*!
-		 *  The current state of the state machine.
-		 *  shared instead of unique to enable copy ctor 
-		 *  but field is kept private rather than protected
-		 */
-		std::shared_ptr<BASE> _currentState = nullptr;
-	};
+	/*!
+	 *  The current state of the state machine.
+	 *  shared instead of unique to enable copy ctor
+	 *  but field is kept private rather than protected
+	 */
+	std::shared_ptr<BASE> _currentState = nullptr;
+};
 
 } // End of namespace
