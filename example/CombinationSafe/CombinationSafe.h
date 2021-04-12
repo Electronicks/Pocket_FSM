@@ -10,7 +10,7 @@
 #include <iostream>
 
 // I will need a pimpl to hold the combination and possibly more
-struct SafeImpl;
+class SafeImpl;
 
 // State machine inputs
 struct Configure { std::forward_list<int> combination; };

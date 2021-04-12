@@ -11,7 +11,7 @@
 #include <functional> // std::function
 #include <memory>     // std::unique_ptr
 #if defined (UNIX)
-#include <cassert>
+#include <cassert>    // assert
 #endif
 
 namespace pocket_fsm
@@ -326,11 +326,7 @@ public:
 	 */
 	virtual ~FiniteStateMachine()
 	{
-		if (_currentState)
-		{
-			OnExit exit;
-			_currentState->react(exit); // Cleanup
-		}
+		setCurrentState(nullptr); // Cleanup
 	}
 
 	/*!
@@ -349,7 +345,7 @@ public:
 		static_assert(!std::is_same<E, OnEntry>::value && !std::is_same<E, OnExit>::value, "Cannot send an internal event");
 		internal::ASSERT(_currentState.get(), L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
 		lock();
-		_currentState->react(evt);
+		_currentState->react(evt);					// Call concrete state's react function
 		while (_currentState->getNextState())
 		{
 			// This cast is safe because of the static assert at the top of this class
@@ -381,7 +377,8 @@ protected:
 	{
 		internal::ASSERT(newInitialState, L"Need to pass an initial state to the initialize function.");
 		lock();
-		setCurrentState(newInitialState);
+		setCurrentState(nullptr);			// Destroy any previously working State Machine
+		setCurrentState(newInitialState);   // Reinitialize state machine with provided state
 		while (_currentState->getNextState()) // Entry usually doesn't changeState, but it can.
 		{
 			// This cast is safe because of the static assert in this class
@@ -416,14 +413,17 @@ private:
 	 */
 	void setCurrentState(BASE *nextState)
 	{
-		OnExit exit;
-		OnEntry entry;
 		if (_currentState)
 		{
+			OnExit exit;
 			_currentState->react(exit);
 		}
-		_currentState.reset(nextState); // old state destructor calls onTransition, hands off pimpl and gets deleted
-		_currentState->react(entry);
+		if (nextState)
+		{
+			OnEntry entry;
+			_currentState.reset(nextState); // old state destructor calls onTransition, hands off pimpl and gets deleted
+			_currentState->react(entry);
+		}
 	}
 
 	/*!

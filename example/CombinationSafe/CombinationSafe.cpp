@@ -4,13 +4,36 @@
 
 #include "CombinationSafe.h"
 
-struct SafeImpl : public pocket_fsm::PimplBase
+class SafeImpl : public pocket_fsm::PimplBase
 {
 	std::forward_list<int> _combination;
 	std::forward_list<int>::const_iterator _p;
 	// This state flag could be a different state instead, 
 	// but it keeps the error status invisible to the user of the lock
 	bool _error = false;
+
+public:
+	void AdoptCombination(const std::forward_list<int> &newCombination)
+	{
+		_combination = newCombination;
+		Reset();
+	}
+
+	void EnterNumber(int number)
+	{
+		_error |= number != *_p;
+		_p++;
+	}
+
+	inline bool isEntryComplete() const
+	{
+		return _p == _combination.cend();
+	}
+
+	inline bool hasError() const
+	{
+		return _error;
+	}
 
 	void Reset()
 	{
@@ -54,8 +77,7 @@ class Open : public SafeState
 	{
 		if (!e.combination.empty())
 		{
-			pimpl()->_combination = e.combination;
-			pimpl()->Reset();
+			pimpl()->AdoptCombination(e.combination);
 			changeState<Locked>();
 		}
 	}
@@ -72,13 +94,11 @@ class Locked : public SafeState
 
 	REACT(Number) override
 	{
-		pimpl()->_error |= e != *pimpl()->_p;
+		pimpl()->EnterNumber(e);
 
-		pimpl()->_p++;
-
-		if (pimpl()->_p == pimpl()->_combination.cend())
+		if (pimpl()->isEntryComplete())
 		{
-			if (pimpl()->_error)
+			if (pimpl()->hasError())
 				changeState<Lockdown>();
 			else
 				changeState<Open>();
