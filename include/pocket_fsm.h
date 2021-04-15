@@ -25,6 +25,7 @@ BASE_STATE(BASENAME) : Put at the top of your base state class header.
 CONCRETE_STATE(NAME) : Put at the top of all concrete states in source file.
 INITIAL_STATE(NAME) : Put in the concrete state that will serve as initial state.
 REACT(EVENT) : Function signature for react functions. Event parameter is e.
+NESTED_REACT(EVENT) : React implementation for nested state machines
 
 
 *************************************************************************************
@@ -35,7 +36,7 @@ PimplBase : The base class for the optional implementation class of the state ma
 StateIF : The core for a state machine state that has no pimpl
 StatePimplIF<Pimpl> : A state IF that also has a parameterized pimpl
 FiniteStateMachine<Base> : The core fsm processing of states of the parameterized type
-
+NestedStateMachine<Nest, Base> : FSM varaint nested inside a concrete state
 
 
 *************************************************************************************
@@ -92,7 +93,7 @@ takes in each state, on transitions, on entry and on exit.
 	public:
 
  /*!
-  *  Call this macro in a concrete state.
+  *  Call this macro in a concrete state to set up the stringified name.
   *
   *  @param NAME This concrete class
   */
@@ -100,13 +101,14 @@ takes in each state, on transitions, on entry and on exit.
 public: \
 	NAME() { _name=#NAME; }
 
-  /*!
-   *  Use this macro to define the constructor of your initial state.
-   *  It is given the new pimpl instance and it takes ownership of it.
-   *  This macro is technically only necessary if you use a pimpl, but it's good labelling.
-   *
-   *  @param NAME This concrete class
-   */
+/*!
+*  Use this macro to define the constructor of your initial state.
+*  It is given the new pimpl instance and it takes ownership of it.
+*  This macro is technically only necessary if you use a pimpl, but it's good labelling.
+*  The second constructor is intended for initializing nested state machines
+*
+*  @param NAME This concrete class
+*/
 #define INITIAL_STATE(NAME) \
 public: \
 	NAME(PimplType *newPimpl) \
@@ -114,21 +116,39 @@ public: \
 	{ \
 		pocket_fsm::internal::ASSERT(newPimpl, L"You need to pass a pimpl instance to the initial state!"); \
 		_pimpl.reset(dynamic_cast<pocket_fsm::PimplBase*>(newPimpl)); \
+	} \
+	NAME(PimplSmartPtr pimpl) \
+		: NAME() \
+	{ \
+		pocket_fsm::internal::ASSERT(pimpl.get(), L"You need to pass a pimpl instance to the initial state!"); \
+		_pimpl = pimpl; \
 	}
 
-   /*!
-	*  Use this macro to reliaby declare your react functions with the proper signature.
-	*  The event parameter is simply named e ans is a non const reference.
-	*  Call this macro in a concrete state.
-	*
-	*  @param EVENT The type of the parameter of the react function
-	*/
+/*!
+*  Use this macro to reliaby declare your react functions with the proper signature.
+*  The event parameter is simply named e ans is a non const reference.
+*  Call this macro in a concrete state.
+*
+*  @param EVENT The type of the parameter of the react function
+*/
 #define REACT(EVENT) \
 	virtual void react(EVENT &e)
 
-	/*!
-	 *  This namespace includes all things to be obfuscated from users of the header and only relate to the inner workings of pocket_fsm
-	 */
+/*!
+*  Use this macro in a nested state machine to properly set up the event forwarding.
+*  This macro needs to be used for all events handled by the nested state machine
+*
+*  @param EVENT The type of the parameter of the react function
+*/
+#define NESTED_REACT(EVENT) \
+	virtual void react(EVENT &e) override \
+	{ \
+		sendEvent(e); \
+	}
+
+/*!
+	*  This namespace includes all things to be obfuscated from users of the header and only relate to the inner workings of pocket_fsm
+	*/
 namespace internal
 {
 /*!
@@ -268,8 +288,9 @@ public:
 
 		if (_nextState)
 		{
-			// assert in change state guarantees to only change between to children of the same base class.
-			_pimpl.swap(static_cast<StatePimplIF<PimplType>*>(_nextState)->_pimpl);
+			// upcast is safe because of the assert in changeState method 
+			// guarantees nextState to be of the same base class.
+			static_cast<StatePimplIF<PimplType>*>(_nextState)->_pimpl = _pimpl;
 		}
 	}
 
@@ -277,11 +298,11 @@ protected:
 	/*!
 	 *  Beautifiers
 	 */
-	using PimplSmartPtr = std::unique_ptr<PimplBase>;
+	using PimplSmartPtr = std::shared_ptr<PimplBase>; // Pointer is only shared with nested state machine current states.
 	using PimplType = Pimpl;
 
 	/*!
-	 *  Access the Implementation Class as it's proper type
+	 *  Access the Implementation class as its proper type
 	 *
 	 *      @return
 	 */
@@ -307,6 +328,7 @@ protected:
 template<class BASE>
 class FiniteStateMachine
 {
+protected:
 	static_assert(std::is_base_of<StateIF, BASE>::value, "The parameter of FiniteStateMachine needs to be a descendant of StateIF");
 	/*!
 	 *  Useful typedefs for internal events
@@ -315,7 +337,6 @@ class FiniteStateMachine
 	using OnExit = internal::OnExit;
 
 public:
-
 	/*!
 	 *  Constructor.
 	 */
@@ -326,7 +347,7 @@ public:
 	 */
 	virtual ~FiniteStateMachine()
 	{
-		setCurrentState(nullptr); // Cleanup
+		setCurrentState(nullptr); // Call exit on current state
 	}
 
 	/*!
@@ -358,18 +379,18 @@ public:
 	/*!
 	 *  Returns the finite state machine's current state stringified name.
 	 *
-	 *      @return The current state name.
+	 *      @return The current state name, or an empty string if uninitializeed
 	 */
 	inline const char * getCurrentStateName() const
 	{
-		internal::ASSERT(_currentState.get(), L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
-		return _currentState->_name;
+		return _currentState ? _currentState->_name : "";
 	}
 
 protected:
 	/*!
 	 *  Descendants call this in their constructor typically to set the initial state.
 	 *  The state machine takes ownership of the pointer.
+	 *  Can be called subsequently to reinitialize the state machine : any pimpl is destroyed
 	 *
 	 *      @param [in,out] initialState
 	 */
@@ -377,14 +398,38 @@ protected:
 	{
 		internal::ASSERT(newInitialState, L"Need to pass an initial state to the initialize function.");
 		lock();
-		setCurrentState(nullptr);			// Destroy any previously working State Machine
-		setCurrentState(newInitialState);   // Reinitialize state machine with provided state
+		// Reinitialize state machine with provided state
+		// The pimpl is not handed off because _currentState->_nextState is nullptr at this point
+		setCurrentState(newInitialState);   
 		while (_currentState->getNextState()) // Entry usually doesn't changeState, but it can.
 		{
-			// This cast is safe because of the static assert in this class
+			// This upcast is safe because of the static assert in this class
 			setCurrentState(static_cast<BASE*>(_currentState->getNextState()));
 		}
 		unlock();
+	}
+
+	/*!
+	 *  Sets the finite state machine's current state.
+	 *  Also perform the state transition and call internal events
+	 *
+	 *      @param [in,out] nextState Next state to set.
+	 */
+	void setCurrentState(BASE *nextState)
+	{
+		if (_currentState)
+		{
+			OnExit exit;
+			_currentState->react(exit);
+		}
+		
+		_currentState.reset(nextState); // old state destructor calls onTransition, hands off pimpl and gets deleted
+		
+		if (_currentState)
+		{
+			OnEntry entry;
+			_currentState->react(entry);
+		}
 	}
 
 	/*!
@@ -404,34 +449,75 @@ protected:
 	virtual void lock() {};
 	virtual void unlock() {};
 
-private:
-	/*!
-	 *  Sets the finite state machine's current state.
-	 *  Also perform the state transition and call internal events
-	 *
-	 *      @param [in,out] nextState Next state to set.
-	 */
-	void setCurrentState(BASE *nextState)
-	{
-		if (_currentState)
-		{
-			OnExit exit;
-			_currentState->react(exit);
-		}
-		if (nextState)
-		{
-			OnEntry entry;
-			_currentState.reset(nextState); // old state destructor calls onTransition, hands off pimpl and gets deleted
-			_currentState->react(entry);
-		}
-	}
-
 	/*!
 	 *  The current state of the state machine.
-	 *  shared instead of unique to enable copy ctor
-	 *  but field is kept private rather than protected
+	 *  Shared instead of unique to enable copy ctor
+	 *  but instance should not get widespread
 	 */
 	std::shared_ptr<BASE> _currentState = nullptr;
+};
+
+/*!
+ * A State Machine nested inside a concrete state of another state machine.
+ * This class enables hierarchical state machines. To use it properly, you need
+ * a class representing the base for your nested state type, deriving from a 
+ * core base class. Since you will be reacting to a subset or all of the same events,
+ * you have to use the macro NESTED_REACT to implement the reaction forwarding to
+ * the nested state. The state machine should be initialized OnEntry.
+ * 
+ * @tparam BASE_NEST_STATE : Base state type of the nested states
+ * @tparam BASE_CORE_STATE : Base state of the parent of BASE_NEST_STATE
+ * @tparam BASE_ROOT_STATE : Highest level base state, declaring all react overloads
+ */
+template<class BASE_NEST_STATE, class BASE_CORE_STATE, class BASE_ROOT_STATE = BASE_CORE_STATE>
+class NestedStateMachine : public BASE_CORE_STATE, protected FiniteStateMachine<BASE_ROOT_STATE>
+{
+	static_assert(std::is_base_of<BASE_CORE_STATE, BASE_NEST_STATE>::value, "The first parameter of NestedStateMachine needs to be a descendant of the second parameter");
+	static_assert(std::is_base_of<BASE_ROOT_STATE, BASE_NEST_STATE>::value, "The first parameter of NestedStateMachine needs to be a descendant of the third parameter");
+
+protected:
+	// Beautifiers
+	using OnEntry = pocket_fsm::internal::OnEntry;
+	using OnExit = pocket_fsm::internal::OnExit;
+	using FSM = FiniteStateMachine<BASE_ROOT_STATE>;
+
+public:
+		/*!
+	 *  Send an external event to the nested state machine.
+	 *  You cannot call internal events such as OnEntry and OnExit externally!
+	 *  The nested states can call a transit to a core state or high level
+	 *  in which case the next state is adoped by this very state.
+	 *
+	 *      @tparam E The type of the event the current state needs to react to.
+	 *
+	 *      @param [in,out] evt The user defined object the state machine will handle
+	 *
+	 *      @return the input parameter reference
+	 */
+	template<typename E>
+	E &sendEvent(E &evt)
+	{
+		static_assert(!std::is_same<E, OnEntry>::value && !std::is_same<E, OnExit>::value, "Cannot send an internal event");
+		internal::ASSERT(FSM::_currentState.get(), L"You did not call \"initialize(new MyInitialState(...));\" in your constructor!");
+		FSM::lock();
+		FSM::_currentState.get()->react(evt);					// Call concrete state's react function
+		while (FSM::_currentState->getNextState())
+		{
+			if (auto nestType = dynamic_cast<BASE_NEST_STATE*>(FSM::_currentState->getNextState()))
+			{
+				// Change of nested state
+				FSM::setCurrentState(nestType);
+			}
+			else // Next state is a concrete core state. We are exiting this nested state machine!
+			{
+				// Change of core state
+				BASE_CORE_STATE::_nextState = FSM::_currentState->getNextState();
+				break;
+			}
+		}
+		FSM::unlock();
+		return evt;
+	}
 };
 
 } // End of namespace
