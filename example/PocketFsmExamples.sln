@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.1321
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31129.286
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PocketFsmDemo", "PocketFsmDemo\PocketFsmDemo.vcxproj", "{8B7C6007-E752-4DC9-B65B-8D58E9D8915C}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DatingSim", "DatingSim\SimplestStateMachine.vcxproj", "{2F9AB5F3-2255-452C-8FBC-CD928D557B7C}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CombinationSafe", "CombinationSafe\CombinationLock.vcxproj", "{D04953FF-C334-44E0-BAD1-4493849A7772}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CombinationSafe_Nested", "CombinationSafe - Nested\CombinationSafe_Nested.vcxproj", "{21ED021F-7AC9-4175-B221-FCBD60B01400}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -41,6 +43,14 @@ Global
 		{D04953FF-C334-44E0-BAD1-4493849A7772}.Release|x64.Build.0 = Release|x64
 		{D04953FF-C334-44E0-BAD1-4493849A7772}.Release|x86.ActiveCfg = Release|Win32
 		{D04953FF-C334-44E0-BAD1-4493849A7772}.Release|x86.Build.0 = Release|Win32
+		{21ED021F-7AC9-4175-B221-FCBD60B01400}.Debug|x64.ActiveCfg = Debug|x64
+		{21ED021F-7AC9-4175-B221-FCBD60B01400}.Debug|x64.Build.0 = Debug|x64
+		{21ED021F-7AC9-4175-B221-FCBD60B01400}.Debug|x86.ActiveCfg = Debug|Win32
+		{21ED021F-7AC9-4175-B221-FCBD60B01400}.Debug|x86.Build.0 = Debug|Win32
+		{21ED021F-7AC9-4175-B221-FCBD60B01400}.Release|x64.ActiveCfg = Release|x64
+		{21ED021F-7AC9-4175-B221-FCBD60B01400}.Release|x64.Build.0 = Release|x64
+		{21ED021F-7AC9-4175-B221-FCBD60B01400}.Release|x86.ActiveCfg = Release|Win32
+		{21ED021F-7AC9-4175-B221-FCBD60B01400}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

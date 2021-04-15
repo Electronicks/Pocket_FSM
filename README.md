@@ -1,4 +1,4 @@
-# Pocket FSM
+﻿# Pocket FSM
 
 Pocket FSM is a single header lightweight and high performance Finite State Machine Framework. It has minimal dependencies so that it can be used in any system. I believe that FSMs are an effective way to code any kind of software objects that can have states, sequences or simple message handling, and this framework makes it quicker and easier to code those software objects.
 
@@ -24,6 +24,7 @@ Pocket FSM provides an easy and intuitive way to code a complex state machine fr
 * Compile time and debug-only runtime asserts make sure that appropriate error messages are displayed when a misuse of the framework occurs.
 * Stringified concrete state names provide easy logging
 * Built-in decoupling sets up for a proper Model-View-Controller triad.
+* Possibility of having hirarchical state machines
 
 Here's a  depiction of the separation done of the interface and the implementation.
 ![Decoupling Plan](https://github.com/Electronicks/Pocket_FSM/tree/master/doc/Decoupling_Plan.jpg "Decoupling Diagram")
@@ -290,3 +291,29 @@ To change the state of the machine, simply call changeState\<NewState\>() and af
 You can also have a function to be run during the transition, after OnExit but before OnEntry.
 
 It's easy to use lambdas or bind non-static methods to the transition thanks to the use of standard function objects.
+
+## Hierarchical Finite State Machines
+
+If you love state machines, you'll want to put state machines in your state machines! This is not just a meme, but an actual design called hierarchical state machines, and it serves many purposes. This enables one or multiple states to become an entire state machine themselves. Pocket FSM allows you to create these nested state machines by deriving from the class NestedStateMachine and using the macro NESTED_REACT. All the code for the nested state machines can be exclusively put in the source file, and hide its existence to the user of the root state machine. The expression "root state" represents the highest level state, "core state" is the state holding the nested FSM and "nested state" is the state in the nested FSM.
+
+|                               | Base state Hierarchy |  Concrete states in this level        |
+| ----------------------------: | :------------------: | ------------------------------------- |
+|        **Top level states**   | BASE_ROOT_STATE ⟵  | ConcreteRootState1, ..., NestedFsmNb1 |
+|                               |		↑              |                                       |
+|**First level nested state**   | BASE_CORE_STATE ⟵  | NestLvl1State1, ..., NestedFsmNb2     |
+|                               |		↑              |                                       |
+|**Second level nested states** | BASE_NEST_STATE ⟵  | NestedLvl2State1, ...                 |
+
+1. First you need to define a base state for your nested states by deriving from the base core state (either root or intermediary base state if there's is multiple levels of nested FSM). This is because the nested states needs to be distinguished from other base states.
+2. Define the concrete nested states by deriving from the base nested state from step 1. One concrete state needs to be an initial state. Nested concrete states are allowed to transit to any high level concrete state to exit the nested state machine.
+3. Define the concrete state holding the nested state machine by deriving from pocket_fsm::NestedStateMachine<NEST_BASE, CORE_BASE, [ROOT_BASE]>. This inheritance makes the class both a CORE_BASE derivative, making it a concrete state of that level and a state machine for the nested states. 
+	1. Call the nested state machine's initialize method in the react handler for OnEntry event, instanciating the nested state initial state and passing the pimpl smart pointer. DO NOT CREATE A NEW PIMPL, but share the existing smart pointer.
+	2. Implement the react function using the macro NESTED_REACT for each event handled by the nested states. This macro sets up the event forwarding.
+
+The base nested state class can have a final definition to a react function in order to have a common handler for the same event. This is a common use for nested FSMs to have a common handler to a subset of concrete states.
+
+Take not that core concrete states cannot transition to a specific nested state, but have to transition to the concrete state containing the nested state machine. Invertly, nested state machines are allowed to transition to a core concrete state, thus exiting the nested state machine.
+
+Take note that the smart pointers used by Pocket FSM are shared pointers in order to make hierarchical state machines work, as well as object copying. But these shared pointers should not be abused by creating more strong references, thus extending the lives of those internal objects beyond the life of the state machine itself.
+
+
