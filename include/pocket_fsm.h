@@ -227,8 +227,14 @@ public:
 	 *
 	 *      @return The next state.
 	 */
-	inline StateIF *getNextState()
+	inline StateIF *getNextState(bool handoff = false)
 	{
+		if (handoff)
+		{
+			StateIF* backup = _nextState;
+			_nextState = nullptr;
+			return backup;
+		}
 		return _nextState;
 	}
 
@@ -422,13 +428,16 @@ protected:
 			OnExit exit;
 			_currentState->react(exit);
 		}
-		
-		_currentState.reset(nextState); // old state destructor calls onTransition, hands off pimpl and gets deleted
-		
-		if (_currentState)
+
+		if (nextState)
 		{
+			_currentState.reset(nextState); // old state destructor calls onTransition, hands off pimpl and gets deleted
 			OnEntry entry;
 			_currentState->react(entry);
+		}
+		else
+		{
+			_currentState.reset();
 		}
 	}
 
@@ -482,7 +491,7 @@ protected:
 	using FSM = FiniteStateMachine<BASE_ROOT_STATE>;
 
 public:
-		/*!
+	/*!
 	 *  Send an external event to the nested state machine.
 	 *  You cannot call internal events such as OnEntry and OnExit externally!
 	 *  The nested states can call a transit to a core state or high level
@@ -511,7 +520,7 @@ public:
 			else // Next state is a concrete core state. We are exiting this nested state machine!
 			{
 				// Change of core state
-				BASE_CORE_STATE::_nextState = FSM::_currentState->getNextState();
+				BASE_CORE_STATE::_nextState = FSM::_currentState->getNextState(true);
 				break;
 			}
 		}
